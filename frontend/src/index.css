@@ -1,0 +1,97 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Electrifying Midnight Cyberpunk Theme */
+    --background: 240 60% 6%;
+    --foreground: 210 20% 90%; /* Softer off-white text */
+
+    --card: 240 50% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 240 50% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 185 100% 50%;
+    --primary-foreground: 240 60% 6%;
+
+    --secondary: 320 100% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 40% 16%;
+    --muted-foreground: 220 20% 75%;
+
+    --accent: 320 100% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 100% 65%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 40% 22%;
+    --input: 240 40% 22%;
+    --ring: 185 100% 50%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 240 60% 8%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 185 100% 50%;
+    --sidebar-primary-foreground: 240 60% 6%;
+    --sidebar-accent: 240 40% 16%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 40% 22%;
+    --sidebar-ring: 185 100% 50%;
+  }
+
+  .dark {
+    /* Keeps the exact same stunning theme in dark mode natively */
+    --background: 240 60% 6%;
+    --foreground: 210 20% 90%;
+    --card: 240 50% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 240 50% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 185 100% 50%;
+    --primary-foreground: 240 60% 6%;
+    --secondary: 320 100% 60%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 40% 16%;
+    --muted-foreground: 220 20% 75%;
+    --accent: 320 100% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 100% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 40% 22%;
+    --input: 240 40% 22%;
+    --ring: 185 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply text-foreground font-inter min-h-screen selection:bg-primary selection:text-primary-foreground;
+    background: radial-gradient(circle at top right, hsl(320, 80%, 15%), transparent 60%),
+                radial-gradient(circle at bottom left, hsl(185, 80%, 15%), transparent 60%),
+                linear-gradient(135deg, hsl(var(--background)), hsl(230, 70%, 5%));
+    background-color: hsl(var(--background));
+    background-size: cover;
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+  
+  .glass-effect {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)];
+  }
+}
