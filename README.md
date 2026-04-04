@@ -75,13 +75,6 @@ App will be available at `http://localhost:8080`
 npm run build
 ```
 
-## 🌐 Deploy to Vercel
-
-1. Push your code to GitHub
-2. Go to [vercel.com](https://vercel.com) → New Project → Import your repo
-3. Vercel auto-detects Vite — click **Deploy**
-
-Your portal will be live at `https://jbvnl-smart-portal.vercel.app`
 
 ## 📁 Project Structure
 
