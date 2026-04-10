@@ -50,21 +50,21 @@ const LoginTab: React.FC<LoginTabProps> = ({ onSuccess }) => {
         onSuccess();
       }
     } catch (error: any) {
-      console.error('Login error detail:', error);
-      
-      let errorTitle = "Login Failed";
-      let errorDesc = "Invalid credentials or unauthorized access";
+      console.error('Login error:', error);
 
-      if (error.message === 'access_denied' || error.message === 'Role mismatch') {
+      // BUG #4 FIX: login() now always throws with the real backend message,
+      // so we display error.message directly instead of matching stale strings.
+      let errorTitle = "Login Failed";
+      let errorDesc = error.message || "Invalid credentials or unauthorized access.";
+
+      // Friendly override for known patterns
+      if (error.message?.toLowerCase().includes('role mismatch')) {
         errorTitle = "Role Mismatch";
-        errorDesc = `You cannot login as a ${loginData.role} with this account.`;
-      } else if (error.message === 'admin_not_approved' || error.message === 'Account is pending approval') {
+      } else if (error.message?.toLowerCase().includes('pending')) {
         errorTitle = "Account Pending";
-        errorDesc = "Your account is still waiting for manager approval.";
-      } else if (error.message === 'Invalid email or password') {
+      } else if (error.message?.toLowerCase().includes('invalid email or password')) {
+        errorTitle = "Login Failed";
         errorDesc = "The email or password you entered is incorrect.";
-      } else if (error.message) {
-        errorDesc = error.message;
       }
 
       toast({

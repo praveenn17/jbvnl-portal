@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 
@@ -6,7 +5,7 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role: string) => Promise<boolean>;
   logout: () => void;
-  register: (userData: { 
+  register: (userData: {
     name: string;
     email: string;
     password: string;
@@ -16,6 +15,11 @@ interface AuthContextType {
     consumerNumber?: string;
   }) => Promise<boolean>;
   verifyOtp: (email: string, otp: string) => Promise<boolean>;
+  // BUG #8 FIX: Dedicated resend function that only re-sends OTP without
+  // touching localStorage or re-running the full registration flow.
+  resendOtp: (email: string) => Promise<boolean>;
+  // BUG #2 FIX: Exposed so RegisterTab can clear pending state on back.
+  clearOtpPending: () => void;
   isAuthenticated: boolean;
   loading: boolean;
   pendingUsers: User[];
@@ -43,39 +47,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [otpPendingEmail, setOtpPendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is already logged in
     const savedUser = localStorage.getItem('jbvnl_user');
     const savedSubmissions = localStorage.getItem('jbvnl_quick_submissions');
-    
+
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
     if (savedSubmissions) {
       setQuickLinkSubmissions(JSON.parse(savedSubmissions));
     }
-    
-    // Fetch pending users if user is manager or admin
+
+    // BUG #5 FIX: Only fetch pending users if the logged-in user is admin or
+    // manager. Calling this endpoint for consumers always returned 401.
     const fetchPending = async () => {
       const token = localStorage.getItem('jbvnl_token');
-      if (token) {
-        try {
-          const response = await fetch('/api/auth/users/pending', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setPendingUsers(data.map((u: any) => ({
+      const savedUserRaw = localStorage.getItem('jbvnl_user');
+      if (!token || !savedUserRaw) return;
+
+      const savedUserParsed = JSON.parse(savedUserRaw);
+      if (savedUserParsed.role !== 'admin' && savedUserParsed.role !== 'manager') return;
+
+      try {
+        const response = await fetch('/api/auth/users/pending', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPendingUsers(
+            data.map((u: any) => ({
               id: u._id,
               email: u.email,
               name: u.name,
               role: u.role,
               status: u.status,
-              createdAt: u.createdAt
-            })));
-          }
-        } catch (error) {
-          console.error('Failed to fetch pending users:', error);
+              createdAt: u.createdAt,
+            }))
+          );
         }
+      } catch (error) {
+        console.error('Failed to fetch pending users:', error);
       }
     };
 
@@ -95,35 +105,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
 
       if (!response.ok) {
-        // Throw the specific backend message if available
+        // BUG #4 FIX: Always throw the backend error message so the LoginTab
+        // can display it properly. Previously only 2 specific strings were
+        // re-thrown and all other messages (e.g. role mismatch) were swallowed.
         throw new Error(data.message || 'Login failed');
       }
-      
+
       const loggedUser: User = {
         id: data._id,
         email: data.email,
         name: data.name,
         role: data.role,
         status: data.status,
-        createdAt: new Date().toISOString(), // This should ideally come from backend
+        // BUG #7 FIX: Use real createdAt from backend, not login timestamp.
+        createdAt: data.createdAt || new Date().toISOString(),
       };
-      
+
       setUser(loggedUser);
       localStorage.setItem('jbvnl_user', JSON.stringify(loggedUser));
       localStorage.setItem('jbvnl_token', data.token);
       return true;
     } catch (error) {
-      console.error('Login failed:', error);
-      if (error instanceof Error && (error.message === 'access_denied' || error.message === 'admin_not_approved')) {
-        throw error;
-      }
-      return false;
+      // BUG #4 FIX: Always re-throw so the LoginTab catch block can display
+      // the real backend message in the toast.
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const register = async (userData: { 
+  const register = async (userData: {
     name: string;
     email: string;
     password: string;
@@ -134,44 +145,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }): Promise<boolean> => {
     setLoading(true);
     try {
-      console.log('Attempting to register and send OTP to:', userData.email);
-      // 1. Send OTP to backend first
+      // Send OTP first — backend also checks if email already exists here
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userData.email }),
       });
 
-      console.log('OTP Response status:', response.status);
       const data = await response.json();
-      
+
       if (!response.ok) {
-        console.error('OTP sending failed:', data);
-        return false;
+        // Surface the real backend message (e.g. "email already exists")
+        throw new Error(data.message || 'Failed to send OTP');
       }
 
-      if (data.debugOtp) {
-        console.log('%c-----------------------------------------', 'color: green; font-weight: bold');
-        console.log(`%cDEBUG OTP RECEIVED: ${data.debugOtp}`, 'color: green; font-weight: bold; font-size: 14px');
-        console.log('%c-----------------------------------------', 'color: green; font-weight: bold');
-      }
-
-      // 2. Store registration data temporarily
+      // Store registration data temporarily — consumed by verifyOtp()
       localStorage.setItem('jbvnl_temp_reg_data', JSON.stringify(userData));
       setOtpPendingEmail(userData.email);
-      console.log('OTP sent and UI state updated');
       return true;
     } catch (error) {
       console.error('Registration/OTP error:', error);
-      return false;
+      throw error; // Re-throw so RegisterTab can show the real message
     } finally {
       setLoading(false);
     }
   };
 
+  // BUG #2 FIX: clearOtpPending cleans up ALL OTP-related state when the
+  // user clicks "Back" from the OTP screen. Previously handleBackFromOtp only
+  // hid the UI but left stale data in localStorage and context state, causing
+  // the old email's data to be submitted on the next attempt.
+  const clearOtpPending = () => {
+    localStorage.removeItem('jbvnl_temp_reg_data');
+    setOtpPendingEmail(null);
+  };
+
   const verifyOtp = async (email: string, otp: string): Promise<boolean> => {
     setLoading(true);
-    console.log(`Verifying OTP for ${email}: ${otp}`);
     try {
       // 1. Verify OTP with backend
       const otpResponse = await fetch('/api/auth/verify-otp', {
@@ -182,47 +192,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!otpResponse.ok) {
         const errorData = await otpResponse.json();
-        console.error('%c[OTP ERROR]', 'color: red; font-weight: bold', {
-          status: otpResponse.status,
-          message: errorData.message
-        });
-        return false;
+        throw new Error(errorData.message || 'OTP verification failed');
       }
 
-      console.log('%c[OTP SUCCESS]', 'color: green; font-weight: bold', 'Bypass or Real OTP accepted');
-
-      // 2. If OTP is valid, proceed with registration
+      // 2. OTP verified — proceed with final registration
       const tempRegData = localStorage.getItem('jbvnl_temp_reg_data');
-      if (tempRegData) {
-        const userData = JSON.parse(tempRegData);
-        
-        console.log('OTP verified, proceeding to final registration for:', userData.email);
-        const response = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userData),
-        });
-
-        const regData = await response.json();
-
-        if (!response.ok) {
-          console.error('Final registration failed:', regData);
-          // Throw a specific error so the UI can show a better message
-          throw new Error(regData.message || 'Registration failed after OTP verification');
-        }
-
-        console.log('Registration successful!');
-        localStorage.removeItem('jbvnl_temp_reg_data');
-        setOtpPendingEmail(null);
-        return true;
+      if (!tempRegData) {
+        throw new Error('Registration data missing. Please start over.');
       }
-      return false;
+
+      const userData = JSON.parse(tempRegData);
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+
+      const regData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(regData.message || 'Registration failed after OTP verification');
+      }
+
+      // Clean up temp state
+      localStorage.removeItem('jbvnl_temp_reg_data');
+      setOtpPendingEmail(null);
+      return true;
     } catch (error) {
-      console.error('OTP verification or Registration process failed:', error);
-      // Re-throw the error so the component can catch the message
+      // Re-throw so OtpVerification component can show the message
       throw error;
     } finally {
       setLoading(false);
+    }
+  };
+
+  // BUG #8 FIX: Dedicated resendOtp — only sends OTP, does NOT overwrite
+  // localStorage or re-run the full registration flow.
+  const resendOtp = async (email: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to resend OTP');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      throw error;
     }
   };
 
@@ -232,21 +255,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...data,
       submittedAt: new Date().toISOString(),
     };
-    
     const updatedSubmissions = [...quickLinkSubmissions, submission];
     setQuickLinkSubmissions(updatedSubmissions);
     localStorage.setItem('jbvnl_quick_submissions', JSON.stringify(updatedSubmissions));
   };
 
-  // Note: These would also need to be moved to the backend in Phase 4
   const updateUserStatus = async (userId: string, status: 'approved' | 'rejected' | 'hold') => {
     const token = localStorage.getItem('jbvnl_token');
     try {
       const response = await fetch(`/api/auth/users/${userId}/status`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ status }),
       });
@@ -271,6 +292,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     register,
     verifyOtp,
+    resendOtp,
+    clearOtpPending,
     isAuthenticated: !!user,
     loading,
     pendingUsers,

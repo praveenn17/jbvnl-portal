@@ -1,0 +1,216 @@
+================================================================================
+  JBVNL SMART PORTAL — AUTH PIPELINE: FIXES APPLIED & DEV→PRODUCTION GUIDE
+  Updated: 2026-04-10
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1 — ALL BUGS FIXED (11 total)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ #   | Sev      | Fix Applied
+-----|----------|-----------------------------------------------------------
+  1  | CRITICAL | sendOtp now checks if email already exists in MongoDB BEFORE
+     |          | sending OTP. Returns "email already exists" immediately.
+     |          | File: backend/controllers/authController.js — sendOtp()
+-----|----------|-----------------------------------------------------------
+  2  | CRITICAL | handleBackFromOtp now calls clearOtpPending() which removes
+     |          | 'jbvnl_temp_reg_data' from localStorage AND resets
+     |          | otpPendingEmail. Stale data can no longer corrupt retries.
+     |          | Files: frontend/src/components/auth/RegisterTab.tsx
+     |          |        frontend/src/contexts/AuthContext.tsx — clearOtpPending()
+-----|----------|-----------------------------------------------------------
+  3  | HIGH     | registerUser() now requires a server-side verified entry in
+     |          | the verifiedEmails Map before creating an account. Anyone
+     |          | calling POST /api/auth/register without OTP gets HTTP 403.
+     |          | OTP bypass (000000) removed entirely.
+     |          | File: backend/controllers/authController.js
+-----|----------|-----------------------------------------------------------
+  4  | HIGH     | login() in AuthContext now always throws the real backend
+     |          | error. LoginTab catch block uses contains-checks instead of
+     |          | exact string matching so messages are never silently swallowed.
+     |          | Files: frontend/src/contexts/AuthContext.tsx — login()
+     |          |        frontend/src/components/auth/LoginTab.tsx — catch block
+-----|----------|-----------------------------------------------------------
+  5  | HIGH     | AuthContext useEffect now checks saved user role before
+     |          | calling GET /api/auth/users/pending. Only admin/manager fetch
+     |          | it; consumers no longer get 401 spam on every page load.
+     |          | File: frontend/src/contexts/AuthContext.tsx — useEffect
+-----|----------|-----------------------------------------------------------
+  6  | MEDIUM   | OTP still uses in-memory Map (Redis not added) but the
+     |          | developer bypass (000000) has been removed. If the server
+     |          | restarts, users should request a new OTP — this is now the
+     |          | correct expected behavior. A proper persistent store (Redis
+     |          | or MongoDB TTL) is recommended before real deployment.
+-----|----------|-----------------------------------------------------------
+  7  | MEDIUM   | Both login() and registerUser() now return/use data.createdAt
+     |          | from the database instead of the login timestamp.
+     |          | Files: backend/controllers/authController.js
+     |          |        frontend/src/contexts/AuthContext.tsx — login()
+-----|----------|-----------------------------------------------------------
+  8  | MEDIUM   | Added dedicated resendOtp(email) to AuthContext that only
+     |          | calls POST /api/auth/send-otp without touching localStorage
+     |          | or re-running the registration flow. OtpVerification now uses
+     |          | resendOtp() instead of register().
+     |          | Files: frontend/src/contexts/AuthContext.tsx — resendOtp()
+     |          |        frontend/src/components/auth/OtpVerification.tsx
+-----|----------|-----------------------------------------------------------
+  9  | MEDIUM   | protect() middleware restructured to use else instead of a
+     |          | separate if(!token) at the bottom — eliminates double-response
+     |          | risk.
+     |          | File: backend/middleware/authMiddleware.js
+-----|----------|-----------------------------------------------------------
+ 10  | LOW      | Manager accounts now start with status='pending'. Status check
+     |          | on login is enforced for managers. Toast messages after OTP
+     |          | now correctly say "pending approval" for manager, "active"
+     |          | for consumer/admin.
+     |          | Files: backend/controllers/authController.js — registerUser()
+     |          |        frontend/src/components/auth/OtpVerification.tsx
+-----|----------|-----------------------------------------------------------
+ 11  | LOW      | All console.log(%c ...) replaced with console.warn() which
+     |          | works correctly in Node.js. Master password bypass (999999)
+     |          | removed.
+     |          | File: backend/controllers/authController.js
+-----|----------|-----------------------------------------------------------
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2 — WHAT CHANGED: DEVELOPMENT → PRODUCTION MODE
+  (backend/.env: NODE_ENV changed from "development" to "production")
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────┬───────────────────────┬────────────────────────┐
+│ Feature                     │ DEVELOPMENT            │ PRODUCTION             │
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ OTP Bypass (000000)         │ Was active — any user  │ REMOVED. Real OTP only │
+│                             │ could skip OTP with    │                        │
+│                             │ code "000000"          │                        │
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ Master Password (999999)    │ Was active — login to  │ REMOVED. Correct       │
+│                             │ any account with 999999│ password required      │
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ OTP in API response         │ Was included as        │ REMOVED. OTP is only   │
+│ (debugOtp field)            │ debugOtp in JSON body  │ in server terminal     │
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ Manager account status      │ All accounts set to    │ Manager → 'pending'    │
+│                             │ 'approved' on register │ Consumer/Admin→'approved│
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ Manager login               │ Pending managers could │ Pending managers get   │
+│                             │ login (check disabled) │ HTTP 401 until approved│
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ Register without OTP        │ Possible — no server   │ HTTP 403 returned.     │
+│                             │ check for verified     │ Must verify OTP first  │
+│                             │ email                  │                        │
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ otp_debug.txt               │ Written after every    │ Removed (file write    │
+│                             │ OTP generation         │ removed from code)     │
+├─────────────────────────────┼───────────────────────┼────────────────────────┤
+│ Verbose [DEBUG] console logs│ Printed for every step │ General console.warn() │
+│                             │ in auth flow           │ only for errors        │
+└─────────────────────────────┴───────────────────────┴────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3 — AUTH FLOW PER ROLE (PRODUCTION BEHAVIOUR)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONSUMER
+  Register  →  OTP sent  →  OTP verified  →  Account created (status: approved)
+  Login     →  Password match + role match  →  Dashboard access immediately
+
+MANAGER
+  Register  →  OTP sent  →  OTP verified  →  Account created (status: pending)
+  Login     →  Blocked with "pending admin approval" until admin approves
+  Approve   →  Admin logs in → approves manager → manager can now login
+
+ADMIN
+  Register  →  OTP sent  →  OTP verified  →  Account created (status: approved)
+  Login     →  Password match + role match  →  Dashboard access immediately
+  Note: At least one admin must be seeded in MongoDB for the approval flow to
+        work — otherwise there is nobody to approve managers.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4 — FILES CHANGED IN THIS SESSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  backend/.env
+    - NODE_ENV changed: development → production
+
+  backend/controllers/authController.js
+    - Added verifiedEmails Map for server-side OTP enforcement
+    - sendOtp: pre-checks if email already registered (Bug #1)
+    - sendOtp: removed debugOtp from response (Bug #3)
+    - verifyOtp: removed 000000 bypass (Bug #3), adds email to verifiedEmails
+    - registerUser: enforces verifiedEmails check before creating user (Bug #3)
+    - registerUser: role-based initial status — manager=pending (Bug #10)
+    - registerUser: returns real createdAt from DB (Bug #7)
+    - authUser: removed master password bypass 999999 (Bug #11)
+    - authUser: enabled status check for manager role (Bug #10)
+    - authUser: returns real createdAt (Bug #7)
+    - All %c console.log replaced with console.warn (Bug #11)
+
+  backend/middleware/authMiddleware.js
+    - protect(): replaced if/if with if/else (Bug #9)
+
+  frontend/src/contexts/AuthContext.tsx
+    - login(): always throws backend error, removed selective re-throw (Bug #4)
+    - login(): uses data.createdAt from backend (Bug #7)
+    - useEffect: role-gated pending user fetch — admin/manager only (Bug #5)
+    - register(): throws on error so UI can show real message (Bug #4 related)
+    - Added clearOtpPending() — clears localStorage + state (Bug #2)
+    - Added resendOtp(email) — dedicated OTP resend without side effects (Bug #8)
+
+  frontend/src/components/auth/RegisterTab.tsx
+    - Imports clearOtpPending from useAuth (Bug #2)
+    - handleBackFromOtp calls clearOtpPending() (Bug #2)
+    - handleRegister wrapped in try/catch to show real error messages (Bug #4)
+
+  frontend/src/components/auth/OtpVerification.tsx
+    - handleResendOtp uses resendOtp() instead of register() (Bug #8)
+    - Success toast now shows correct message per role (Bug #10)
+
+  frontend/src/components/auth/LoginTab.tsx
+    - catch block uses contains-checks instead of exact string matching (Bug #4)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5 — NOTES & FUTURE IMPROVEMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. ADMIN USER — ALREADY SEEDED ✓
+     Run `node seedAdmin.js` from the backend directory to create the default
+     admin account (safe to run multiple times — skips if already exists).
+
+       Email   : admin@jbvnl.in
+       Password: Admin@1234
+       Role    : admin  |  Status: approved
+
+     Change the password after first login. The admin account is the only one
+     that can approve pending manager accounts.
+
+  2. OTP DELIVERY — CONSOLE LOG (INTENTIONAL)
+     OTPs are printed to the server terminal in ALL environments (dev and
+     production). This is intentional for this project — no email service is
+     needed. When a user registers, check the backend terminal for:
+
+       [OTP] ----------------------------------------
+       [OTP] CODE FOR user@email.com: 485921
+       [OTP] ----------------------------------------
+
+     When you are ready for a real deployment with actual users, replace the
+     console.warn() block in authController.js → sendOtp() with Nodemailer:
+       - npm install nodemailer
+       - Configure SMTP credentials in .env (SMTP_HOST, SMTP_USER, SMTP_PASS)
+       - Send the OTP via transporter.sendMail() instead of console.warn()
+
+  3. REPLACE IN-MEMORY OTP STORE (important before real deployment)
+     The otpStore Map is wiped on every server restart. If the backend restarts
+     while a user is mid-registration, their OTP is lost and they must start
+     over. For a real deployment, store OTPs in a MongoDB collection with a TTL
+     index or use Redis.
+
+  4. SECURE JWT_SECRET (important before real deployment)
+     Replace "your_super_secret_key_123" in backend/.env with a
+     cryptographically random string (minimum 32 characters).
+
+================================================================================

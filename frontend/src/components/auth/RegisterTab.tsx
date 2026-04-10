@@ -11,7 +11,7 @@ import { RegisterData } from './types';
 import OtpVerification from './OtpVerification';
 
 const RegisterTab: React.FC = () => {
-  const { register, loading, otpPendingEmail } = useAuth();
+  const { register, loading, otpPendingEmail, clearOtpPending } = useAuth();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -51,33 +51,29 @@ const RegisterTab: React.FC = () => {
 
 
 
-    const success = await register({
-      name: registerData.name,
-      email: registerData.email,
-      password: registerData.password,
-      role: registerData.role as 'consumer' | 'admin' | 'manager',
-      phone: registerData.phone,
-      address: registerData.address,
-      consumerNumber: registerData.consumerNumber,
-    });
-    
-    if (success) {
-      setShowOtpVerification(true);
-      if (registerData.role === 'admin') {
-        toast({
-          title: "Registration submitted!",
-          description: "Please check your email for the OTP to verify your account.",
-        });
-      } else {
+    try {
+      const success = await register({
+        name: registerData.name,
+        email: registerData.email,
+        password: registerData.password,
+        role: registerData.role as 'consumer' | 'admin' | 'manager',
+        phone: registerData.phone,
+        address: registerData.address,
+        consumerNumber: registerData.consumerNumber,
+      });
+
+      if (success) {
+        setShowOtpVerification(true);
         toast({
           title: "OTP Sent",
-          description: "Please check your email for verification code",
+          description: "Check the server terminal or otp_debug.txt for your verification code.",
         });
       }
-    } else {
+    } catch (error: any) {
+      // BUG #4 related: show the real backend message (e.g. "email already exists")
       toast({
         title: "Registration Failed",
-        description: "Please try again later",
+        description: error.message || "Please try again later.",
         variant: "destructive",
       });
     }
@@ -98,7 +94,10 @@ const RegisterTab: React.FC = () => {
   };
 
   const handleBackFromOtp = () => {
+    // BUG #2 FIX: Clear all OTP-related state AND localStorage so stale data
+    // from a previous attempt cannot corrupt the next registration attempt.
     setShowOtpVerification(false);
+    clearOtpPending();
   };
 
   if (showOtpVerification && otpPendingEmail) {

@@ -15,7 +15,7 @@ interface OtpVerificationProps {
 }
 
 const OtpVerification: React.FC<OtpVerificationProps> = ({ email, onBack, onSuccess }) => {
-  const { verifyOtp, register, loading } = useAuth();
+  const { verifyOtp, resendOtp, loading } = useAuth();
   const { toast } = useToast();
   const [otp, setOtp] = useState('');
 
@@ -35,19 +35,21 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({ email, onBack, onSucc
       const success = await verifyOtp(email, otp);
       
       if (success) {
-        // Check if it's an admin registration
         const tempUserData = localStorage.getItem('jbvnl_temp_reg_data');
-        const isAdminSignup = tempUserData && JSON.parse(tempUserData).role === 'admin';
-        
-        if (isAdminSignup) {
+        const role = tempUserData ? JSON.parse(tempUserData).role : '';
+
+        // BUG #10 FIX: Toast now reflects actual backend behaviour.
+        // Managers start as 'pending' and need admin approval.
+        // Consumers and Admins are auto-approved and can login immediately.
+        if (role === 'manager') {
           toast({
-            title: "Request submitted!",
-            description: "Your request is on hold. Manager approval required.",
+            title: "Registration Submitted!",
+            description: "Your manager account is pending admin approval. You will be able to login once approved.",
           });
         } else {
           toast({
-            title: "Registration Successful",
-            description: "Your account has been created and is pending approval",
+            title: "Registration Successful!",
+            description: "Your account is active. You can now login.",
           });
         }
         onSuccess();
@@ -62,17 +64,23 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({ email, onBack, onSucc
     }
   };
 
+  // BUG #8 FIX: Uses dedicated resendOtp() which only re-sends the OTP without
+  // re-running the full registration flow or overwriting localStorage.
   const handleResendOtp = async () => {
-    const tempRegData = localStorage.getItem('jbvnl_temp_reg_data');
-    if (tempRegData) {
-      const userData = JSON.parse(tempRegData);
-      const success = await register(userData);
+    try {
+      const success = await resendOtp(email);
       if (success) {
         toast({
           title: "OTP Resent",
-          description: `New OTP sent to ${email}`,
+          description: `New verification code sent. Check server terminal or otp_debug.txt.`,
         });
       }
+    } catch (error: any) {
+      toast({
+        title: "Resend Failed",
+        description: error.message || "Could not resend OTP. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
