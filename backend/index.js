@@ -3,10 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 
-const fs = require('fs');
-
-// Startup Log
-fs.writeFileSync('backend_start.log', `Backend started at ${new Date().toISOString()}\n`);
+// Remove fs to prevent Vercel crashes (Vercel has read-only filesystem)
 
 // Connect to Database
 connectDB();
@@ -24,7 +21,6 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     const log = `${new Date().toISOString()} - ${req.method} ${req.url} ${res.statusCode} ${duration}ms\n`;
     console.log(log);
-    fs.appendFileSync('backend_requests.log', log);
   });
   next();
 });
