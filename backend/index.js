@@ -42,6 +42,9 @@ app.get('/api/status', (req, res) => {
 // Define Ports
 const PORT = process.env.PORT || 5000;
 
+// Export for Vercel Serverless Functions
+module.exports = app;
+
 app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
