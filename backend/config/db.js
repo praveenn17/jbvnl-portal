@@ -4,17 +4,24 @@ if (!process.env.VERCEL) {
 }
 const mongoose = require('mongoose');
 
+let cachedConn = null;
+
 const connectDB = async () => {
+  if (cachedConn) {
+    return cachedConn;
+  }
   try {
     // Vercel serverless optimizations and faster timeouts
     const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/jbvnl_portal', {
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
     });
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    cachedConn = conn;
+    return conn;
   } catch (error) {
     console.error(`MongoDB Connection Error: ${error.message}`);
-    // Don't kill the Vercel process on connection fail, let it throw 500s properly
-    // process.exit(1); 
+    // Let errors bubble up instead of silent freezing
+    throw error;
   }
 };
 

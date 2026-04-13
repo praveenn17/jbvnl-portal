@@ -5,10 +5,14 @@ const connectDB = require('./config/db');
 
 // Remove fs to prevent Vercel crashes (Vercel has read-only filesystem)
 
-// Connect to Database
-connectDB();
-
 const app = express();
+
+// Avoid background connections breaking on Vercel Serverless
+// We use a middleware to ensure Database is connected BEFORE routing
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 // Middleware
 app.use(cors());
