@@ -1,21 +1,2 @@
-index-CYfgoX5a.js:545  POST https://jbvnl-portal.vercel.app/api/auth/login 500 (Internal Server Error)
-login @ index-CYfgoX5a.js:545
-f @ index-CYfgoX5a.js:671
-rt @ index-CYfgoX5a.js:78
-ZA @ index-CYfgoX5a.js:78
-PN @ index-CYfgoX5a.js:78
-nF @ index-CYfgoX5a.js:78
-mT @ index-CYfgoX5a.js:90
-XU @ index-CYfgoX5a.js:90
-pT @ index-CYfgoX5a.js:90
-QU @ index-CYfgoX5a.js:90
-(anonymous) @ index-CYfgoX5a.js:90
-zE @ index-CYfgoX5a.js:174
-QA @ index-CYfgoX5a.js:78
-Tx @ index-CYfgoX5a.js:90
-SB @ index-CYfgoX5a.js:78
-hx @ index-CYfgoX5a.js:78
-DB @ index-CYfgoX5a.js:78Understand this error
-index-CYfgoX5a.js:671 Login error: Error: Operation `users.findOne()` buffering timed out after 10000ms
-    at login (index-CYfgoX5a.js:545:9794)
-    at async f (index-CYfgoX5a.js:671:86195)
+Failed to load resource: the server responded with a status of 500 ()Understand this error
+index-OlODP9P3.js:671 Login error: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON

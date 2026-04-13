@@ -10,8 +10,13 @@ const app = express();
 // Avoid background connections breaking on Vercel Serverless
 // We use a middleware to ensure Database is connected BEFORE routing
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("Vercel DB Connection Error:", err);
+    res.status(500).json({ message: "Database connection failed", error: err.message });
+  }
 });
 
 // Middleware
