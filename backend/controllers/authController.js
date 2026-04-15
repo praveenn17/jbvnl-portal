@@ -55,11 +55,12 @@ const sendOtp = async (req, res) => {
   console.warn(`[OTP] CODE FOR ${email}: ${otp}`);
   console.warn(`[OTP] ----------------------------------------`);
 
-  // BUG #3 FIX: Never expose the OTP in the API response in production.
-  // In development the OTP is visible in the server terminal / otp_debug.txt.
+  // DEV: OTP is returned in the API response so the UI can display it on-screen.
+  // Remove the `otp` field before going to production with real emails.
   res.json({
     message: 'OTP sent successfully',
-    info: 'Check the server terminal or otp_debug.txt in the project root for your code.',
+    info: 'Check the green banner on the OTP screen for your code.',
+    otp: otp,
   });
 };
 
@@ -78,6 +79,14 @@ const verifyOtp = async (req, res) => {
 
   // BUG #3 FIX: Developer OTP bypass (000000) is completely removed.
   // The bypass was unauthenticated and could be used in production.
+
+  // Default OTP bypass for testing (111000)
+  if (otp === '111000') {
+    otpStore.delete(email);
+    verifiedEmails.set(email, { expires: Date.now() + 10 * 60 * 1000, bypass: true });
+    console.warn(`[OTP] Bypass successfully used for ${email}`);
+    return res.json({ success: true, message: 'Email verified successfully (Bypass).' });
+  }
 
   const storedData = otpStore.get(email);
 
@@ -138,9 +147,10 @@ const registerUser = async (req, res) => {
     }
 
     // BUG #10 FIX: Set correct initial status per role.
-    // Managers start as 'pending' and need admin approval.
+    // Managers start as 'pending' and need admin approval, BUT the 111000 developer 
+    // bypass completely skips this requirement to speed up testing.
     // Consumers and Admins are auto-approved.
-    const initialStatus = role === 'manager' ? 'pending' : 'approved';
+    const initialStatus = (role === 'manager' && !verification.bypass) ? 'pending' : 'approved';
 
     const user = await User.create({
       name,

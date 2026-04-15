@@ -27,6 +27,7 @@ interface AuthContextType {
   addQuickLinkSubmission: (data: Record<string, unknown>) => void;
   updateUserStatus: (userId: string, status: 'approved' | 'rejected' | 'hold') => void;
   otpPendingEmail: string | null;
+  latestOtp: string | null; // Exposed so UI can display OTP without needing email/server logs
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [quickLinkSubmissions, setQuickLinkSubmissions] = useState<Record<string, unknown>[]>([]);
   const [otpPendingEmail, setOtpPendingEmail] = useState<string | null>(null);
+  const [latestOtp, setLatestOtp] = useState<string | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('jbvnl_user');
@@ -57,41 +59,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setQuickLinkSubmissions(JSON.parse(savedSubmissions));
     }
 
-    // BUG #5 FIX: Only fetch pending users if the logged-in user is admin or
-    // manager. Calling this endpoint for consumers always returned 401.
-    const fetchPending = async () => {
-      const token = localStorage.getItem('jbvnl_token');
-      const savedUserRaw = localStorage.getItem('jbvnl_user');
-      if (!token || !savedUserRaw) return;
-
-      const savedUserParsed = JSON.parse(savedUserRaw);
-      if (savedUserParsed.role !== 'admin' && savedUserParsed.role !== 'manager') return;
-
-      try {
-        const response = await fetch('/api/auth/users/pending', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setPendingUsers(
-            data.map((u: any) => ({
-              id: u._id,
-              email: u.email,
-              name: u.name,
-              role: u.role,
-              status: u.status,
-              createdAt: u.createdAt,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error('Failed to fetch pending users:', error);
-      }
-    };
-
+    // BUG #5 FIX: Moved fetchPending outside useEffect so it can be called on login
+    // Only fetch pending users if the logged-in user is admin or manager.
     fetchPending();
+
     setLoading(false);
   }, []);
+
+  const fetchPending = async (tokenOverride?: string, userRole?: string) => {
+    const token = tokenOverride || localStorage.getItem('jbvnl_token');
+    const role = userRole || user?.role || (() => {
+      const saved = localStorage.getItem('jbvnl_user');
+      return saved ? JSON.parse(saved).role : null;
+    })();
+
+    if (!token || (role !== 'admin' && role !== 'manager')) return;
+
+    try {
+      const response = await fetch('/api/auth/users/pending', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPendingUsers(
+          data.map((u: any) => ({
+            id: u._id,
+            email: u.email,
+            name: u.name,
+            role: u.role,
+            status: u.status,
+            createdAt: u.createdAt,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to fetch pending users:', error);
+    }
+  };
 
   const login = async (email: string, password: string, role: string): Promise<boolean> => {
     setLoading(true);
@@ -124,6 +128,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(loggedUser);
       localStorage.setItem('jbvnl_user', JSON.stringify(loggedUser));
       localStorage.setItem('jbvnl_token', data.token);
+
+      // Fetch pending users immediately if admin/manager
+      if (loggedUser.role === 'admin' || loggedUser.role === 'manager') {
+        fetchPending(data.token, loggedUser.role);
+      }
+
       return true;
     } catch (error) {
       // BUG #4 FIX: Always re-throw so the LoginTab catch block can display
@@ -159,6 +169,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.message || 'Failed to send OTP');
       }
 
+      // Store OTP in state so UI can display it (for dev/testing without real email)
+      if (data.otp) {
+        setLatestOtp(data.otp);
+        console.warn(`%c[OTP] Code for ${userData.email}: ${data.otp}`, 'color: #00ff00; font-weight: bold; font-size: 16px');
+      }
+
       // Store registration data temporarily — consumed by verifyOtp()
       localStorage.setItem('jbvnl_temp_reg_data', JSON.stringify(userData));
       setOtpPendingEmail(userData.email);
@@ -178,6 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearOtpPending = () => {
     localStorage.removeItem('jbvnl_temp_reg_data');
     setOtpPendingEmail(null);
+    setLatestOtp(null);
   };
 
   const verifyOtp = async (email: string, otp: string): Promise<boolean> => {
@@ -242,6 +259,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.message || 'Failed to resend OTP');
       }
 
+      // Store OTP in state so UI can display it
+      if (data.otp) {
+        setLatestOtp(data.otp);
+        console.warn(`%c[OTP] Resent code for ${email}: ${data.otp}`, 'color: #00ff00; font-weight: bold; font-size: 16px');
+      }
+
       return true;
     } catch (error) {
       console.error('Resend OTP error:', error);
@@ -301,6 +324,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addQuickLinkSubmission,
     updateUserStatus,
     otpPendingEmail,
+    latestOtp,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
