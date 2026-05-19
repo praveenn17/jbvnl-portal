@@ -2,35 +2,54 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  name: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
-  role: { 
-    type: String, 
-    enum: ['consumer', 'admin', 'manager'], 
-    default: 'consumer' 
+  role: {
+    type: String,
+    enum: ['consumer', 'admin', 'manager'],
+    default: 'consumer',
   },
-  status: { 
-    type: String, 
-    enum: ['pending', 'approved', 'rejected', 'hold'], 
-    default: 'pending' 
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'hold'],
+    default: 'pending',
   },
+
+  // ── Email Verification ──────────────────────────────────────────────────────
+  // Whether the user has successfully verified their email via OTP.
+  isEmailVerified: { type: Boolean, default: false },
+
+  // Hashed OTP (bcrypt). We never store plain OTPs.
+  emailOtpHash: { type: String, default: null },
+
+  // Expiry timestamp for the OTP (Date object).
+  emailOtpExpires: { type: Date, default: null },
+
+  // Number of failed OTP attempts for this OTP cycle.
+  emailOtpAttempts: { type: Number, default: 0 },
+
+  // Timestamp of the last OTP send — used to enforce resend cooldown.
+  emailOtpLastSent: { type: Date, default: null },
+
+  // ── Consumer-specific fields ────────────────────────────────────────────────
   consumerNumber: { type: String },
   address: { type: String },
   phone: { type: String },
-  connectionType: { type: String },
-  createdAt: { type: Date, default: Date.now }
+
+  createdAt: { type: Date, default: Date.now },
 });
 
-// Hash password before saving
-userSchema.pre('save', async function() {
+// ── Password hashing pre-save hook ───────────────────────────────────────────
+// Automatically hashes the password whenever it is set or changed.
+userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
-  this.password = await bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 12);
 });
 
-// Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+// ── Instance method: compare plain password with stored hash ─────────────────
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 module.exports = mongoose.model('User', userSchema);

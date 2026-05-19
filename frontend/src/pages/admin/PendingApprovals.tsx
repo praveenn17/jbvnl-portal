@@ -5,10 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Users, Clock, Calendar, MapPin } from 'lucide-react';
+import ApprovalDetailsModal from '@/components/dashboard/ApprovalDetailsModal';
+import { User } from '@/types';
 
 const PendingApprovals: React.FC = () => {
   const navigate = useNavigate();
-  const { pendingUsers } = useAuth();
+  const { pendingUsers, updateUserStatus } = useAuth();
+  const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
 
   const getTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -166,7 +169,7 @@ const PendingApprovals: React.FC = () => {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => navigate(`/admin/user-details/${user.id}`)}
+                          onClick={() => setSelectedUser(user)}
                         >
                           View Details
                         </Button>
@@ -180,12 +183,14 @@ const PendingApprovals: React.FC = () => {
                           variant="outline" 
                           size="sm"
                           className="text-red-600 hover:text-red-700"
+                          onClick={() => updateUserStatus(user.id, 'rejected')}
                         >
                           Reject
                         </Button>
                         <Button 
                           size="sm"
                           className="bg-green-600 hover:bg-green-700"
+                          onClick={() => updateUserStatus(user.id, 'approved')}
                         >
                           Approve
                         </Button>
@@ -198,6 +203,10 @@ const PendingApprovals: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      <ApprovalDetailsModal 
+        user={selectedUser} 
+        onClose={() => setSelectedUser(null)} 
+      />
     </div>
   );
 };

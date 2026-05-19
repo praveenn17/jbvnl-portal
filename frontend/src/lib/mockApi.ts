@@ -64,17 +64,47 @@ class RealApi {
     return await response.json();
   }
 
-  async updateComplaintStatus(id: string, status: Complaint['status']): Promise<Complaint> {
-    const response = await fetch(`/api/complaints/${id}`, {
+  async updateComplaintStatus(id: string, status: Complaint['status'], note?: string): Promise<Complaint> {
+    const response = await fetch(`/api/complaints/${id}/status`, {
       method: 'PATCH',
       headers: { 
         'Content-Type': 'application/json',
         ...getAuthHeader() 
       },
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status, note })
     });
     
     if (!response.ok) throw new Error('Failed to update complaint status');
+    return await response.json();
+  }
+
+  async assignComplaint(id: string, assignedTo: string, assignedTeam: string, note?: string): Promise<Complaint> {
+    const response = await fetch(`/api/complaints/${id}/assign`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ assignedTo, assignedTeam, note })
+    });
+    if (!response.ok) throw new Error('Failed to assign complaint');
+    return await response.json();
+  }
+
+  async updateComplaintPriority(id: string, priority: string, note?: string): Promise<Complaint> {
+    const response = await fetch(`/api/complaints/${id}/priority`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ priority, note })
+    });
+    if (!response.ok) throw new Error('Failed to update priority');
+    return await response.json();
+  }
+
+  async addComplaintNote(id: string, note: string): Promise<Complaint> {
+    const response = await fetch(`/api/complaints/${id}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ note })
+    });
+    if (!response.ok) throw new Error('Failed to add note');
     return await response.json();
   }
 

@@ -29,12 +29,13 @@ import SecuritySettings from "./pages/manager/SecuritySettings";
 import SystemParameters from "./pages/manager/SystemParameters";
 import PendingApprovals from "./pages/admin/PendingApprovals";
 import ActiveComplaints from "./pages/admin/ActiveComplaints";
+import ManagerComplaints from "./pages/manager/ManagerComplaints";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/manager/reports-analytics" element={<ProtectedRoute allowedRoles={['manager']}><ReportsAnalytics /></ProtectedRoute>} />
               <Route path="/manager/security-settings" element={<ProtectedRoute allowedRoles={['manager']}><SecuritySettings /></ProtectedRoute>} />
               <Route path="/manager/system-parameters" element={<ProtectedRoute allowedRoles={['manager']}><SystemParameters /></ProtectedRoute>} />
+              <Route path="/manager/complaints" element={<ProtectedRoute allowedRoles={['manager']}><ManagerComplaints /></ProtectedRoute>} />
 
               {/* Admin-only routes */}
               <Route path="/admin/revenue-details" element={<ProtectedRoute allowedRoles={['admin']}><RevenueDetails /></ProtectedRoute>} />

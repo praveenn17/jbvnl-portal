@@ -32,13 +32,21 @@ export interface Bill {
 }
 
 export interface Complaint {
-  id: string;
+  _id?: string;
+  id?: string;
   consumerNumber: string;
   title: string;
   description: string;
   category: 'billing' | 'power_outage' | 'connection' | 'other' | 'technical' | 'meter';
   status: 'open' | 'in_progress' | 'resolved' | 'closed' | 'pending' | 'assigned';
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  assignedTo?: any; // object or string id
+  assignedTeam?: string;
+  adminNotes?: { note: string; addedBy: string; addedByRole: string; createdAt: string }[];
+  timeline?: { status: string; title: string; message: string; changedByRole: string; createdAt: string }[];
+  sla?: { slaHours: number; dueAt: string; resolvedAt?: string; status: 'on_track' | 'at_risk' | 'breached' | 'completed' };
+  resolvedAt?: string;
+  closedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

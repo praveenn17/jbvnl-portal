@@ -127,7 +127,7 @@ const ConsumerDashboard: React.FC = () => {
       {/* Consumer Info Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
             <User className="h-6 w-6 text-primary" />
             Welcome, {user?.name ?? 'Consumer'}
           </h1>
@@ -394,11 +394,12 @@ const ConsumerDashboard: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={sixMonthBills} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
                     <Tooltip
                       formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Amount']}
-                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
+                      labelStyle={{ color: '#94a3b8' }}
                     />
                     <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -422,11 +423,12 @@ const ConsumerDashboard: React.FC = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
                     <Tooltip
                       formatter={(value: number) => [`${value} kWh`, 'Units']}
-                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
+                      labelStyle={{ color: '#94a3b8' }}
                     />
                     <Area
                       type="monotone"

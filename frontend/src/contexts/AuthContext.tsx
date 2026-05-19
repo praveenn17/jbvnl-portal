@@ -9,16 +9,16 @@ interface AuthContextType {
     name: string;
     email: string;
     password: string;
-    role: 'consumer' | 'admin' | 'manager';
+    role: 'consumer' | 'manager';
     phone?: string;
     address?: string;
     consumerNumber?: string;
   }) => Promise<boolean>;
+  /** Verify OTP entered by the user against the server */
   verifyOtp: (email: string, otp: string) => Promise<boolean>;
-  // BUG #8 FIX: Dedicated resend function that only re-sends OTP without
-  // touching localStorage or re-running the full registration flow.
+  /** Resend OTP — enforces server-side cooldown */
   resendOtp: (email: string) => Promise<boolean>;
-  // BUG #2 FIX: Exposed so RegisterTab can clear pending state on back.
+  /** Clear all OTP-pending state (called when user clicks "Back") */
   clearOtpPending: () => void;
   isAuthenticated: boolean;
   loading: boolean;
@@ -27,7 +27,6 @@ interface AuthContextType {
   addQuickLinkSubmission: (data: Record<string, unknown>) => void;
   updateUserStatus: (userId: string, status: 'approved' | 'rejected' | 'hold') => void;
   otpPendingEmail: string | null;
-  latestOtp: string | null; // Exposed so UI can display OTP without needing email/server logs
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,7 +45,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [quickLinkSubmissions, setQuickLinkSubmissions] = useState<Record<string, unknown>[]>([]);
   const [otpPendingEmail, setOtpPendingEmail] = useState<string | null>(null);
-  const [latestOtp, setLatestOtp] = useState<string | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('jbvnl_user');
@@ -59,10 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setQuickLinkSubmissions(JSON.parse(savedSubmissions));
     }
 
-    // BUG #5 FIX: Moved fetchPending outside useEffect so it can be called on login
-    // Only fetch pending users if the logged-in user is admin or manager.
     fetchPending();
-
     setLoading(false);
   }, []);
 
@@ -97,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // ── Login ──────────────────────────────────────────────────────────────────
   const login = async (email: string, password: string, role: string): Promise<boolean> => {
     setLoading(true);
     try {
@@ -109,9 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
 
       if (!response.ok) {
-        // BUG #4 FIX: Always throw the backend error message so the LoginTab
-        // can display it properly. Previously only 2 specific strings were
-        // re-thrown and all other messages (e.g. role mismatch) were swallowed.
         throw new Error(data.message || 'Login failed');
       }
 
@@ -121,7 +114,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: data.name,
         role: data.role,
         status: data.status,
-        // BUG #7 FIX: Use real createdAt from backend, not login timestamp.
         createdAt: data.createdAt || new Date().toISOString(),
       };
 
@@ -129,33 +121,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('jbvnl_user', JSON.stringify(loggedUser));
       localStorage.setItem('jbvnl_token', data.token);
 
-      // Fetch pending users immediately if admin/manager
       if (loggedUser.role === 'admin' || loggedUser.role === 'manager') {
         fetchPending(data.token, loggedUser.role);
       }
 
       return true;
     } catch (error) {
-      // BUG #4 FIX: Always re-throw so the LoginTab catch block can display
-      // the real backend message in the toast.
-      throw error;
+      throw error; // Re-throw so LoginTab can display the real message
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Register (Step 1: send OTP) ────────────────────────────────────────────
   const register = async (userData: {
     name: string;
     email: string;
     password: string;
-    role: 'consumer' | 'admin' | 'manager';
+    role: 'consumer' | 'manager';
     phone?: string;
     address?: string;
     consumerNumber?: string;
   }): Promise<boolean> => {
     setLoading(true);
     try {
-      // Send OTP first — backend also checks if email already exists here
+      // Send OTP — backend checks if email is already registered
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,43 +155,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
 
       if (!response.ok) {
-        // Surface the real backend message (e.g. "email already exists")
-        throw new Error(data.message || 'Failed to send OTP');
+        throw new Error(data.message || 'Failed to send verification code');
       }
 
-      // Store OTP in state so UI can display it (for dev/testing without real email)
-      if (data.otp) {
-        setLatestOtp(data.otp);
-        console.warn(`%c[OTP] Code for ${userData.email}: ${data.otp}`, 'color: #00ff00; font-weight: bold; font-size: 16px');
-      }
-
-      // Store registration data temporarily — consumed by verifyOtp()
+      // Store registration data temporarily so verifyOtp can submit it
       localStorage.setItem('jbvnl_temp_reg_data', JSON.stringify(userData));
       setOtpPendingEmail(userData.email);
       return true;
     } catch (error) {
       console.error('Registration/OTP error:', error);
-      throw error; // Re-throw so RegisterTab can show the real message
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  // BUG #2 FIX: clearOtpPending cleans up ALL OTP-related state when the
-  // user clicks "Back" from the OTP screen. Previously handleBackFromOtp only
-  // hid the UI but left stale data in localStorage and context state, causing
-  // the old email's data to be submitted on the next attempt.
+  // ── Clear OTP pending state ────────────────────────────────────────────────
   const clearOtpPending = () => {
     localStorage.removeItem('jbvnl_temp_reg_data');
     setOtpPendingEmail(null);
-    setLatestOtp(null);
   };
 
+  // ── Verify OTP (Step 2: verify then register) ──────────────────────────────
   const verifyOtp = async (email: string, otp: string): Promise<boolean> => {
     setLoading(true);
     try {
-      // 1. Verify OTP with backend
-      const otpResponse = await fetch('/api/auth/verify-otp', {
+      // 1. Verify OTP with backend (now uses /verify-email endpoint)
+      const otpResponse = await fetch('/api/auth/verify-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim(), otp: otp.trim() }),
@@ -212,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(errorData.message || 'OTP verification failed');
       }
 
-      // 2. OTP verified — proceed with final registration
+      // 2. OTP verified — submit the full registration
       const tempRegData = localStorage.getItem('jbvnl_temp_reg_data');
       if (!tempRegData) {
         throw new Error('Registration data missing. Please start over.');
@@ -236,18 +216,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setOtpPendingEmail(null);
       return true;
     } catch (error) {
-      // Re-throw so OtpVerification component can show the message
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  // BUG #8 FIX: Dedicated resendOtp — only sends OTP, does NOT overwrite
-  // localStorage or re-run the full registration flow.
+  // ── Resend OTP ─────────────────────────────────────────────────────────────
   const resendOtp = async (email: string): Promise<boolean> => {
+    setLoading(true);
     try {
-      const response = await fetch('/api/auth/send-otp', {
+      const response = await fetch('/api/auth/resend-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim() }),
@@ -256,19 +235,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to resend OTP');
-      }
-
-      // Store OTP in state so UI can display it
-      if (data.otp) {
-        setLatestOtp(data.otp);
-        console.warn(`%c[OTP] Resent code for ${email}: ${data.otp}`, 'color: #00ff00; font-weight: bold; font-size: 16px');
+        throw new Error(data.message || 'Failed to resend verification code');
       }
 
       return true;
     } catch (error) {
       console.error('Resend OTP error:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -324,7 +299,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addQuickLinkSubmission,
     updateUserStatus,
     otpPendingEmail,
-    latestOtp,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

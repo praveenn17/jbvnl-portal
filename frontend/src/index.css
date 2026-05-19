@@ -5,68 +5,76 @@
 
 @layer base {
   :root {
-    /* Electrifying Midnight Cyberpunk Theme */
-    --background: 240 60% 6%;
-    --foreground: 210 20% 90%; /* Softer off-white text */
+    /* ── JBVNL Premium Light Theme ───────────────────────────────────────── */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
 
-    --card: 240 50% 10%;
-    --card-foreground: 0 0% 100%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 240 50% 10%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 185 100% 50%;
-    --primary-foreground: 240 60% 6%;
+    --primary: 187 100% 35%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 320 100% 60%;
+    --secondary: 330 81% 50%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 40% 16%;
-    --muted-foreground: 220 20% 75%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 320 100% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 100% 65%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 240 40% 22%;
-    --input: 240 40% 22%;
-    --ring: 185 100% 50%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 187 100% 35%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 240 60% 8%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 185 100% 50%;
-    --sidebar-primary-foreground: 240 60% 6%;
-    --sidebar-accent: 240 40% 16%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 40% 22%;
-    --sidebar-ring: 185 100% 50%;
+    /* Sidebar */
+    --sidebar-background: 222 47% 9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 187 100% 42%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 22%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 28%;
+    --sidebar-ring: 187 100% 42%;
+
+    /* ── Semantic tokens for chart / recharts tooltips ──────────────────── */
+    --chart-1: 187 100% 42%;
+    --chart-2: 330 81% 60%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
   }
 
+  /* Dark class mirrors root — the app is dark-first  */
   .dark {
-    /* Keeps the exact same stunning theme in dark mode natively */
-    --background: 240 60% 6%;
-    --foreground: 210 20% 90%;
-    --card: 240 50% 10%;
-    --card-foreground: 0 0% 100%;
-    --popover: 240 50% 10%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 185 100% 50%;
-    --primary-foreground: 240 60% 6%;
-    --secondary: 320 100% 60%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 187 100% 42%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 330 81% 60%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 240 40% 16%;
-    --muted-foreground: 220 20% 75%;
-    --accent: 320 100% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 100% 65%;
+    --muted: 217 33% 22%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 187 100% 42%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 40% 22%;
-    --input: 240 40% 22%;
-    --ring: 185 100% 50%;
+    --border: 217 33% 28%;
+    --input: 217 33% 22%;
+    --ring: 187 100% 42%;
   }
 }
 
@@ -76,22 +84,27 @@
   }
 
   body {
-    @apply text-foreground font-inter min-h-screen selection:bg-primary selection:text-primary-foreground;
-    background: radial-gradient(circle at top right, hsl(320, 80%, 15%), transparent 60%),
-                radial-gradient(circle at bottom left, hsl(185, 80%, 15%), transparent 60%),
-                linear-gradient(135deg, hsl(var(--background)), hsl(230, 70%, 5%));
+    @apply text-foreground font-inter min-h-screen selection:bg-primary/30 selection:text-primary-foreground;
+    background: linear-gradient(135deg, hsl(210, 40%, 98%) 0%, hsl(0, 0%, 100%) 50%, hsl(210, 40%, 98%) 100%);
     background-color: hsl(var(--background));
-    background-size: cover;
+    background-attachment: fixed;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .dark body {
+    background: linear-gradient(135deg, hsl(222, 47%, 11%) 0%, hsl(215, 50%, 8%) 50%, hsl(222, 47%, 11%) 100%);
     background-attachment: fixed;
   }
 }
 
 @layer components {
   .hover-scale {
-    @apply transition-transform duration-200 hover:scale-105;
+    @apply transition-all duration-200 hover:scale-[1.02] hover:shadow-lg;
   }
-  
+
   .glass-effect {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)];
+    @apply backdrop-blur-md border border-white/10;
+    background: rgba(30, 41, 59, 0.75);    /* semi-transparent card surface */
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
   }
 }

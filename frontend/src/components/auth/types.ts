@@ -10,7 +10,7 @@ export interface RegisterData {
   email: string;
   password: string;
   confirmPassword: string;
-  role: 'consumer' | 'admin' | 'manager' | '';
+  role: 'consumer' | 'manager' | ''; // 'admin' cannot self-register — use seedAdmin.js
   phone: string;
   address: string;
   consumerNumber: string;

@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { User, Complaint } from '../../types';
 import { Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Clock, XCircle, Settings, Eye } from 'lucide-react';
+import AdminSettings from './AdminSettings';
+import ApprovalDetailsModal from './ApprovalDetailsModal';
 
 // ── Mock analytics data ─────────────────────────────────────────────────────
 
@@ -44,6 +46,7 @@ const AdminDashboard: React.FC = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [stats, setStats] = useState({ revenue: 0, totalUsers: 0, pendingComplaints: 0 });
   const [loading, setLoading] = useState(true);
+  const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -67,7 +70,8 @@ const AdminDashboard: React.FC = () => {
 
   const handleUserApproval = (userId: string, action: 'approve' | 'reject' | 'view') => {
     if (action === 'view') {
-      navigate(`/admin/user-details/${userId}`);
+      const u = pendingUsers.find(p => p.id === userId);
+      if (u) setSelectedUserForModal(u);
       return;
     }
     if (action === 'approve') {
@@ -102,55 +106,55 @@ const AdminDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
           <p className="text-muted-foreground">Welcome, {user?.name ?? 'Admin'}</p>
         </div>
-        <Badge variant="outline" className="text-sm">Category: Admin</Badge>
+        <Badge variant="outline" className="text-sm border-primary/40 text-primary">Category: Admin</Badge>
       </div>
 
       {/* Admin Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-        <Card className="hover-scale cursor-pointer" onClick={() => navigate('/admin/pending-approvals')}>
+        <Card className="hover-scale cursor-pointer border-l-4 border-l-secondary" onClick={() => navigate('/admin/pending-approvals')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
+            <UserCheck className="h-5 w-5 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-secondary">{pendingUsers.length}</div>
-            <p className="text-xs text-muted-foreground">Awaiting review</p>
+            <div className="text-3xl font-bold text-foreground">{pendingUsers.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting review</p>
           </CardContent>
         </Card>
 
-        <Card className="hover-scale cursor-pointer" onClick={() => navigate('/admin/active-complaints')}>
+        <Card className="hover-scale cursor-pointer border-l-4 border-l-destructive" onClick={() => navigate('/admin/active-complaints')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Complaints</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Complaints</CardTitle>
+            <AlertTriangle className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{complaints.filter(c => c.status !== 'resolved').length}</div>
-            <p className="text-xs text-muted-foreground">{complaints.length} total</p>
+            <div className="text-3xl font-bold text-foreground">{complaints.filter(c => c.status !== 'resolved').length}</div>
+            <p className="text-xs text-muted-foreground mt-1">{complaints.length} total</p>
           </CardContent>
         </Card>
 
-        <Card className="hover-scale cursor-pointer" onClick={() => navigate('/admin/revenue-details')}>
+        <Card className="hover-scale cursor-pointer border-l-4 border-l-emerald-400" onClick={() => navigate('/admin/revenue-details')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Revenue</CardTitle>
+            <TrendingUp className="h-5 w-5 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">₹{(stats.revenue / 100000).toFixed(1)}L</div>
-            <p className="text-xs text-muted-foreground">Total collected revenue</p>
+            <div className="text-3xl font-bold text-emerald-400">₹{(stats.revenue / 100000).toFixed(1)}L</div>
+            <p className="text-xs text-muted-foreground mt-1">Total collected revenue</p>
           </CardContent>
         </Card>
 
-        <Card className="hover-scale">
+        <Card className="hover-scale border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Consumers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Consumers</CardTitle>
+            <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{stats.totalUsers.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Registered consumers</p>
+            <div className="text-3xl font-bold text-primary">{stats.totalUsers.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">Registered consumers</p>
           </CardContent>
         </Card>
       </div>
@@ -167,20 +171,21 @@ const AdminDashboard: React.FC = () => {
         {/* ── User Approvals Tab ─────────────────────────────────────────────── */}
         <TabsContent value="approvals" className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold">
+            <h3 className="text-lg font-semibold text-foreground">
               Pending User Approvals
               {displayPendingUsers.length > 0 && (
-                <Badge className="ml-2 bg-secondary text-secondary-foreground">{displayPendingUsers.length}</Badge>
+                <Badge className="ml-2">{ displayPendingUsers.length}</Badge>
               )}
             </h3>
             <p className="text-sm text-muted-foreground">Review and approve new user registrations</p>
           </div>
 
           {displayPendingUsers.length === 0 ? (
-            <Card>
+            <Card className="border-dashed border-2 border-border">
               <CardContent className="pt-8 pb-8 text-center">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <p className="text-muted-foreground">No pending approvals. All caught up!</p>
+                <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
+                <p className="text-foreground font-medium">No pending approvals</p>
+                <p className="text-muted-foreground text-sm mt-1">All caught up!</p>
               </CardContent>
             </Card>
           ) : (
@@ -273,7 +278,7 @@ const AdminDashboard: React.FC = () => {
         {/* ── Analytics Tab (NEW) ────────────────────────────────────────────── */}
         <TabsContent value="analytics" className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold">Analytics & Reports</h3>
+            <h3 className="text-lg font-semibold text-foreground">Analytics & Reports</h3>
             <p className="text-sm text-muted-foreground">Revenue trends and complaint distribution</p>
           </div>
 
@@ -288,11 +293,12 @@ const AdminDashboard: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyRevenue} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
                     <Tooltip
                       formatter={(value: number) => [`₹${value}M`, 'Revenue']}
-                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
+                      labelStyle={{ color: '#94a3b8' }}
                     />
                     <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -330,7 +336,8 @@ const AdminDashboard: React.FC = () => {
                     />
                     <Tooltip
                       formatter={(value: number) => [`${value}%`, 'Share']}
-                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
+                      labelStyle={{ color: '#94a3b8' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -347,11 +354,11 @@ const AdminDashboard: React.FC = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
                   { label: 'New Registrations', value: '180', color: 'text-primary' },
-                  { label: 'Bills Generated', value: '12,456', color: 'text-primary' },
-                  { label: 'Payments Received', value: '11,890', color: 'text-green-600' },
-                  { label: 'Complaints Resolved', value: '89%', color: 'text-green-600' },
+                  { label: 'Bills Generated', value: '12,456', color: 'text-sky-400' },
+                  { label: 'Payments Received', value: '11,890', color: 'text-emerald-400' },
+                  { label: 'Complaints Resolved', value: '89%', color: 'text-amber-400' },
                 ].map(stat => (
-                  <div key={stat.label} className="text-center">
+                  <div key={stat.label} className="text-center p-4 rounded-lg bg-muted/40">
                     <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
                     <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
                   </div>
@@ -361,40 +368,15 @@ const AdminDashboard: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* ── Settings Tab ───────────────────────────────────────────────────── */}
         <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Admin Settings
-              </CardTitle>
-              <CardDescription>Configure system parameters</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  { label: 'Auto-Approval Threshold', value: '5 requests' },
-                  { label: 'Email Notifications', value: 'Enabled', valueClass: 'text-green-600' },
-                  { label: 'SMS Alerts', value: 'Enabled', valueClass: 'text-green-600' },
-                  { label: 'Database Backup', value: 'Daily 2:00 AM', valueClass: 'text-muted-foreground' },
-                  { label: 'Security Level', value: 'Standard', valueClass: 'text-yellow-600' },
-                ].map(item => (
-                  <div key={item.label} className="flex justify-between p-3 border rounded-lg">
-                    <span className="font-medium">{item.label}</span>
-                    <span className={item.valueClass ?? ''}>{item.value}</span>
-                  </div>
-                ))}
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  {['User Management', 'Notification Settings', 'Security Settings', 'Backup & Recovery'].map(label => (
-                    <Button key={label} variant="outline" className="justify-start">{label}</Button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <AdminSettings />
         </TabsContent>
       </Tabs>
+      
+      <ApprovalDetailsModal 
+        user={selectedUserForModal} 
+        onClose={() => setSelectedUserForModal(null)} 
+      />
     </div>
   );
 };

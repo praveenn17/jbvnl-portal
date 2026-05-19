@@ -2,27 +2,28 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Settings, Bell, Sun, Moon } from 'lucide-react';
+import { LogOut, User as UserIcon, Settings, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import NotificationDropdown from './NotificationDropdown';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
 
   return (
-    <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
+    <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-lg shadow-black/10 sticky top-0 z-50 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <img
                 src="/lovable-uploads/c59983aa-c865-4c97-85ff-9de45f1f7d68.png"
                 alt="JBVNL Logo"
                 className="w-10 h-10"
               />
               <div>
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">JBVNL Portal</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Jharkhand Bijli Vitran Nigam Limited</p>
+                <h1 className="text-lg font-bold text-foreground tracking-tight">JBVNL Portal</h1>
+                <p className="text-xs text-muted-foreground">Jharkhand Bijli Vitran Nigam Limited</p>
               </div>
             </div>
           </div>
@@ -34,36 +35,32 @@ const Header: React.FC = () => {
               size="sm"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="text-muted-foreground hover:text-foreground"
             >
               {theme === 'dark' ? (
                 <Sun className="h-4 w-4 text-yellow-400" />
               ) : (
-                <Moon className="h-4 w-4 text-gray-600" />
+                <Moon className="h-4 w-4" />
               )}
             </Button>
 
             {user && (
               <>
-                <Button variant="ghost" size="sm" className="relative">
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    3
-                  </span>
-                </Button>
+                <NotificationDropdown />
 
                 <div className="flex items-center space-x-2 text-sm">
-                  <UserIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-200 font-medium">{user.name}</span>
-                  <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full font-medium capitalize">
+                  <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-foreground font-medium">{user.name}</span>
+                  <span className="px-2.5 py-1 bg-primary/15 text-primary text-xs rounded-full font-semibold capitalize border border-primary/25">
                     {user.role}
                   </span>
                 </div>
 
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <Settings className="h-4 w-4" />
                 </Button>
 
-                <Button variant="ghost" size="sm" onClick={logout} title="Logout">
+                <Button variant="ghost" size="sm" onClick={logout} title="Logout" className="text-muted-foreground hover:text-destructive">
                   <LogOut className="h-4 w-4" />
                 </Button>
               </>

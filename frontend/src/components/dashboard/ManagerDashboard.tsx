@@ -48,10 +48,10 @@ const ManagerDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header with Manager Info */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+        <div className="bg-gradient-to-r from-blue-600/90 to-purple-600/90 rounded-2xl p-8 text-white border border-white/10 shadow-xl">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-4xl font-bold mb-2">Welcome, {user?.name || 'Manager'}</h1>
@@ -147,6 +147,24 @@ const ManagerDashboard: React.FC = () => {
           </Card>
 
           <Card 
+            className="hover-scale cursor-pointer bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0 shadow-lg"
+            onClick={() => navigate('/manager/complaints')}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                My Team's Complaints
+              </CardTitle>
+              <CardDescription className="text-amber-100">
+                Manage and resolve complaints assigned to you
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm opacity-90">Update statuses and SLAs</p>
+            </CardContent>
+          </Card>
+
+          <Card 
             className="hover-scale cursor-pointer bg-gradient-to-br from-teal-500 to-green-600 text-white border-0 shadow-lg"
             onClick={() => navigate('/manager/security-settings')}
           >
@@ -190,7 +208,7 @@ const ManagerDashboard: React.FC = () => {
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="rounded-full shadow-lg bg-white hover:bg-gray-50"
+                className="rounded-full shadow-lg bg-card border-border text-foreground hover:bg-muted"
               >
                 <Settings className="h-5 w-5 mr-2" />
                 Settings
@@ -246,17 +264,17 @@ const ManagerDashboard: React.FC = () => {
 
         {/* Admin Approval Section */}
         <Tabs defaultValue="admin-approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 bg-white/70 backdrop-blur-sm">
-            <TabsTrigger value="admin-approvals" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="admin-approvals">
               Admin Approvals
             </TabsTrigger>
-            <TabsTrigger value="consumer-approvals" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+            <TabsTrigger value="consumer-approvals">
               Consumer Approvals
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="admin-approvals" className="space-y-6">
-            <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-2xl flex items-center gap-2">
                   <AlertTriangle className="h-6 w-6 text-orange-500" />
@@ -269,7 +287,7 @@ const ManagerDashboard: React.FC = () => {
               <CardContent>
                 <div className="grid gap-6">
                   {pendingUsers.filter(user => user.role === 'admin').map((admin) => (
-                    <Card key={admin.id} className="hover-scale bg-gradient-to-r from-orange-50 to-red-50 border-0">
+                    <Card key={admin.id} className="hover-scale border border-border/60">
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-4">
@@ -331,11 +349,11 @@ const ManagerDashboard: React.FC = () => {
                     </Card>
                   ))}
                   {pendingUsers.filter(user => user.role === 'admin').length === 0 && (
-                    <Card className="bg-green-50 border-green-200">
+                    <Card className="border-dashed border-2 border-border">
                       <CardContent className="p-8 text-center">
-                        <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                        <p className="text-green-700 font-medium">No pending admin approvals</p>
-                        <p className="text-green-600 text-sm mt-1">All admin requests have been processed</p>
+                        <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
+                        <p className="text-foreground font-medium">No pending admin approvals</p>
+                        <p className="text-muted-foreground text-sm mt-1">All admin requests have been processed</p>
                       </CardContent>
                     </Card>
                   )}
@@ -345,7 +363,7 @@ const ManagerDashboard: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="consumer-approvals" className="space-y-6">
-            <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-2xl flex items-center gap-2">
                   <Users className="h-6 w-6 text-green-500" />
@@ -358,7 +376,7 @@ const ManagerDashboard: React.FC = () => {
               <CardContent>
                 <div className="grid gap-6">
                   {pendingUsers.filter(user => user.role === 'consumer').map((consumer) => (
-                    <Card key={consumer.id} className="hover-scale bg-gradient-to-r from-green-50 to-blue-50 border-0">
+                    <Card key={consumer.id} className="hover-scale border border-border/60">
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-4">
@@ -411,11 +429,11 @@ const ManagerDashboard: React.FC = () => {
                     </Card>
                   ))}
                   {pendingUsers.filter(user => user.role === 'consumer').length === 0 && (
-                    <Card className="bg-green-50 border-green-200">
+                    <Card className="border-dashed border-2 border-border">
                       <CardContent className="p-8 text-center">
-                        <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                        <p className="text-green-700 font-medium">No pending consumer registrations</p>
-                        <p className="text-green-600 text-sm mt-1">All consumer requests have been processed</p>
+                        <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
+                        <p className="text-foreground font-medium">No pending consumer registrations</p>
+                        <p className="text-muted-foreground text-sm mt-1">All consumer requests have been processed</p>
                       </CardContent>
                     </Card>
                   )}

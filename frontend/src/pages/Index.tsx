@@ -29,7 +29,7 @@ const Index = () => {
 
   if (isAuthenticated && user) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <Header />
         {renderDashboard()}
       </div>

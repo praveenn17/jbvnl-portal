@@ -8,20 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, AlertTriangle, Clock, Calendar, MapPin, User, Filter, Phone, Mail, Copy, MessageSquare, Eye, RefreshCw, X, Users, MessageCircle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Clock, Calendar, MapPin, User, Eye, RefreshCw, MessageCircle } from 'lucide-react';
 import { Complaint } from '@/types';
 import { mockApi } from '@/lib/mockApi';
 
-const STATUSES = ['open', 'in_progress', 'assigned', 'resolved', 'closed'];
-const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-const TEAMS = ['Tech Team A', 'Billing Team', 'Meter Department', 'Field Inspection Team', 'Emergency Response Team', 'Connection Team'];
+const STATUSES = ['in_progress', 'resolved'];
 
 const timeAgo = (d: string) => { const ms = Date.now() - new Date(d).getTime(); const days = Math.ceil(ms / 864e5); if (days < 2) return '1 day ago'; if (days < 7) return `${days} days ago`; if (days < 30) return `${Math.ceil(days / 7)} weeks ago`; return `${Math.ceil(days / 30)} months ago`; };
 const priorityClass = (p: string) => ({ urgent: 'bg-red-500/20 text-red-400 border-red-500/30', high: 'bg-orange-500/20 text-orange-400 border-orange-500/30', medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', low: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }[p] ?? 'bg-muted text-muted-foreground');
 const statusClass = (s: string) => ({ open: 'bg-sky-500/20 text-sky-400', in_progress: 'bg-amber-500/20 text-amber-400', assigned: 'bg-purple-500/20 text-purple-400', resolved: 'bg-emerald-500/20 text-emerald-400', closed: 'bg-muted text-muted-foreground', pending: 'bg-orange-500/20 text-orange-400' }[s] ?? 'bg-muted text-muted-foreground');
 const slaClass = (s?: string) => ({ on_track: 'bg-emerald-500/20 text-emerald-400', at_risk: 'bg-amber-500/20 text-amber-400', breached: 'bg-red-500/20 text-red-400', completed: 'bg-cyan-500/20 text-cyan-400' }[s || 'on_track'] ?? 'bg-muted text-muted-foreground');
 
-const ActiveComplaints: React.FC = () => {
+const ManagerComplaints: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -29,21 +27,12 @@ const ActiveComplaints: React.FC = () => {
 
   // Modals
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [contactId, setContactId] = useState<string | null>(null);
   const [updateStatusId, setUpdateStatusId] = useState<string | null>(null);
-  const [assignId, setAssignId] = useState<string | null>(null);
   const [noteId, setNoteId] = useState<string | null>(null);
-  const [filterOpen, setFilterOpen] = useState(false);
 
   // Form states
   const [newStatus, setNewStatus] = useState('');
-  const [newTeam, setNewTeam] = useState('');
   const [newNote, setNewNote] = useState('');
-
-  // Filter state
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority'>('newest');
 
   const fetchComplaints = async () => {
     try {
@@ -62,21 +51,12 @@ const ActiveComplaints: React.FC = () => {
   }, []);
 
   const filtered = useMemo(() => {
-    let list = [...complaints];
-    if (filterStatus !== 'all') list = list.filter(c => c.status === filterStatus);
-    if (filterPriority !== 'all') list = list.filter(c => c.priority === filterPriority);
-    const prioOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-    if (sortBy === 'newest') list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    else if (sortBy === 'oldest') list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    else list.sort((a, b) => (prioOrder[a.priority] ?? 9) - (prioOrder[b.priority] ?? 9));
-    return list;
-  }, [complaints, filterStatus, filterPriority, sortBy]);
+    return [...complaints].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [complaints]);
 
   const getComp = (id: string | null) => complaints.find(c => c.id === id || c._id === id);
   const detail = getComp(detailId);
-  const contact = getComp(contactId);
   const updatingStatus = getComp(updateStatusId);
-  const assigning = getComp(assignId);
   const noting = getComp(noteId);
 
   const handleUpdateStatus = async () => {
@@ -86,20 +66,8 @@ const ActiveComplaints: React.FC = () => {
       toast({ title: 'Success', description: 'Complaint status updated.' });
       setUpdateStatusId(null);
       fetchComplaints();
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
-    }
-  };
-
-  const handleAssign = async () => {
-    if (!assignId || !newTeam) return;
-    try {
-      await mockApi.assignComplaint(assignId, '', newTeam, newNote);
-      toast({ title: 'Success', description: 'Complaint assigned.' });
-      setAssignId(null);
-      fetchComplaints();
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to assign complaint.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to update status.', variant: 'destructive' });
     }
   };
 
@@ -121,48 +89,15 @@ const ActiveComplaints: React.FC = () => {
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4 mr-2" />Back</Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Active Complaints</h1>
-            <p className="text-muted-foreground">Monitor and manage consumer complaints lifecycle</p>
+            <h1 className="text-3xl font-bold text-foreground">My Team's Complaints</h1>
+            <p className="text-muted-foreground">Manage tasks assigned to you and your team</p>
           </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Complaints</CardTitle><AlertTriangle className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold text-foreground">{complaints.length}</div></CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">SLA Breached</CardTitle><AlertTriangle className="h-4 w-4 text-red-400" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold text-red-400">{complaints.filter(c => c.sla?.status === 'breached').length}</div></CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">High Priority</CardTitle><Clock className="h-4 w-4 text-orange-400" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold text-orange-400">{complaints.filter(c => c.priority === 'high' || c.priority === 'urgent').length}</div></CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Oldest Issue</CardTitle><Calendar className="h-4 w-4 text-purple-400" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold text-purple-400">{complaints.length > 0 ? timeAgo(complaints.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b).createdAt) : 'None'}</div></CardContent>
-          </Card>
         </div>
 
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-foreground"><AlertTriangle className="h-5 w-5" />Complaint Details</CardTitle>
-                <CardDescription>Click any action button to manage complaints</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setFilterOpen(true)}><Filter className="h-4 w-4 mr-2" />Filter & Sort</Button>
-            </div>
+            <CardTitle className="flex items-center gap-2 text-foreground"><AlertTriangle className="h-5 w-5" />Assigned Complaints</CardTitle>
+            <CardDescription>Update status and add work notes</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? <p className="text-center text-muted-foreground py-8">Loading complaints...</p> : (
@@ -197,15 +132,13 @@ const ActiveComplaints: React.FC = () => {
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <Button variant="outline" size="sm" onClick={() => setDetailId(c.id || c._id || null)}><Eye className="h-4 w-4 mr-1" />Details</Button>
-                        <Button variant="outline" size="sm" onClick={() => { setAssignId(c.id || c._id || null); setNewTeam(c.assignedTeam || ''); setNewNote(''); }}><Users className="h-4 w-4 mr-1" />Assign</Button>
-                        <Button variant="outline" size="sm" onClick={() => { setUpdateStatusId(c.id || c._id || null); setNewStatus(c.status); setNewNote(''); }}><RefreshCw className="h-4 w-4 mr-1" />Status</Button>
+                        <Button variant="outline" size="sm" disabled={c.status === 'resolved' || c.status === 'closed'} onClick={() => { setUpdateStatusId(c.id || c._id || null); setNewStatus(c.status); setNewNote(''); }}><RefreshCw className="h-4 w-4 mr-1" />Status</Button>
                         <Button variant="outline" size="sm" onClick={() => { setNoteId(c.id || c._id || null); setNewNote(''); }}><MessageCircle className="h-4 w-4 mr-1" />Note</Button>
-                        <Button variant="outline" size="sm" onClick={() => setContactId(c.id || c._id || null)}><Phone className="h-4 w-4 mr-1" />Contact</Button>
                       </div>
                     </div>
                   </div>
                 ))}
-                {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No complaints found.</p>}
+                {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No assigned complaints found.</p>}
               </div>
             )}
           </CardContent>
@@ -227,13 +160,12 @@ const ActiveComplaints: React.FC = () => {
                 <div><p className="text-xs text-muted-foreground">Assigned Team</p><p className="text-sm font-medium text-foreground">{detail.assignedTeam || 'None'}</p></div>
                 <div><p className="text-xs text-muted-foreground">Reported</p><p className="text-sm font-medium text-foreground">{new Date(detail.createdAt).toLocaleString('en-IN')}</p></div>
                 {detail.sla && <div><p className="text-xs text-muted-foreground">SLA Target</p><p className="text-sm font-medium text-foreground">{new Date(detail.sla.dueAt).toLocaleString('en-IN')}</p></div>}
-                {detail.resolvedAt && <div><p className="text-xs text-muted-foreground">Resolved At</p><p className="text-sm font-medium text-foreground">{new Date(detail.resolvedAt).toLocaleString('en-IN')}</p></div>}
               </div>
               
               <div><p className="text-xs text-muted-foreground mb-1">Full Description</p><p className="text-sm text-foreground bg-muted/40 p-3 rounded-lg border border-border/50">{detail.description}</p></div>
               
               {detail.adminNotes && detail.adminNotes.length > 0 && (
-                <div><p className="text-xs text-muted-foreground mb-1">Admin Notes</p>
+                <div><p className="text-xs text-muted-foreground mb-1">Admin/Work Notes</p>
                 <div className="space-y-2 bg-muted/40 p-3 rounded-lg border border-border/50">
                   {detail.adminNotes.map((n, i) => (
                     <div key={i} className="text-sm mb-2 pb-2 border-b border-border/50 last:border-0 last:pb-0 last:mb-0">
@@ -266,22 +198,6 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── CONTACT CONSUMER MODAL ──────────────────────────────────────────── */}
-      <Dialog open={!!contactId} onOpenChange={() => setContactId(null)}>
-        <DialogContent>
-          {contact && (<>
-            <DialogHeader>
-              <DialogTitle>Contact Consumer</DialogTitle>
-              <DialogDescription>{contact.consumerNumber}</DialogDescription>
-            </DialogHeader>
-            <div className="py-6 text-center text-muted-foreground">
-              <p>Consumer details are masked in this view. Use consumer lookup via dashboard.</p>
-            </div>
-            <DialogFooter><Button onClick={() => setContactId(null)}>Close</Button></DialogFooter>
-          </>)}
-        </DialogContent>
-      </Dialog>
-
       {/* ─── UPDATE STATUS MODAL ─────────────────────────────────────────────── */}
       <Dialog open={!!updateStatusId} onOpenChange={() => setUpdateStatusId(null)}>
         <DialogContent>
@@ -293,29 +209,11 @@ const ActiveComplaints: React.FC = () => {
             <div className="space-y-4 py-2">
               <div className="space-y-2"><Label>New Status</Label>
                 <Select value={newStatus} onValueChange={setNewStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select>
+                <p className="text-xs text-muted-foreground mt-1">Managers can only move assigned tickets to 'In Progress' and then 'Resolved'. Admins handle closing.</p>
               </div>
-              <div className="space-y-2"><Label>Update Note (optional)</Label><Textarea placeholder="Explain what work was done..." value={newNote} onChange={e => setNewNote(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Update Note (mandatory)</Label><Textarea placeholder="Explain what work was done..." value={newNote} onChange={e => setNewNote(e.target.value)} /></div>
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setUpdateStatusId(null)}>Cancel</Button><Button onClick={handleUpdateStatus}>Save Status</Button></DialogFooter>
-          </>)}
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── ASSIGN MODAL ─────────────────────────────────────────────────────── */}
-      <Dialog open={!!assignId} onOpenChange={() => setAssignId(null)}>
-        <DialogContent>
-          {assigning && (<>
-            <DialogHeader>
-              <DialogTitle>Assign Complaint</DialogTitle>
-              <DialogDescription>{assigning.title}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2"><Label>Assign to Team</Label>
-                <Select value={newTeam} onValueChange={setNewTeam}><SelectTrigger><SelectValue placeholder="Select Team" /></SelectTrigger><SelectContent className="bg-popover">{TEAMS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-              </div>
-              <div className="space-y-2"><Label>Assignment Note</Label><Textarea placeholder="Instructions for the team..." value={newNote} onChange={e => setNewNote(e.target.value)} /></div>
-            </div>
-            <DialogFooter><Button variant="outline" onClick={() => setAssignId(null)}>Cancel</Button><Button onClick={handleAssign}>Confirm Assignment</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={() => setUpdateStatusId(null)}>Cancel</Button><Button onClick={handleUpdateStatus} disabled={!newNote}>Save Status</Button></DialogFooter>
           </>)}
         </DialogContent>
       </Dialog>
@@ -325,37 +223,18 @@ const ActiveComplaints: React.FC = () => {
         <DialogContent>
           {noting && (<>
             <DialogHeader>
-              <DialogTitle>Add Admin Note</DialogTitle>
-              <DialogDescription>Internal note for {noting.id || noting._id}</DialogDescription>
+              <DialogTitle>Add Work Note</DialogTitle>
+              <DialogDescription>Add a note to {noting.id || noting._id}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
-              <div className="space-y-2"><Label>Note Content</Label><Textarea placeholder="Internal admin/manager note..." value={newNote} onChange={e => setNewNote(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Note Content</Label><Textarea placeholder="Work log or note..." value={newNote} onChange={e => setNewNote(e.target.value)} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setNoteId(null)}>Cancel</Button><Button onClick={handleAddNote}>Save Note</Button></DialogFooter>
           </>)}
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── FILTER MODAL ─────────────────────────────────────────────────────── */}
-      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Filter & Sort Complaints</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Status</Label>
-              <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="all">All</SelectItem>{STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select>
-            </div>
-            <div className="space-y-2"><Label>Priority</Label>
-              <Select value={filterPriority} onValueChange={setFilterPriority}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="all">All</SelectItem>{PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select>
-            </div>
-            <div className="space-y-2"><Label>Sort By</Label>
-              <Select value={sortBy} onValueChange={(v: 'newest' | 'oldest' | 'priority') => setSortBy(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="newest">Newest First</SelectItem><SelectItem value="oldest">Oldest First</SelectItem><SelectItem value="priority">Priority</SelectItem></SelectContent></Select>
-            </div>
-          </div>
-          <DialogFooter><Button variant="outline" onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setSortBy('newest'); }}>Reset</Button><Button onClick={() => setFilterOpen(false)}>Apply</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 };
 
-export default ActiveComplaints;
+export default ManagerComplaints;
