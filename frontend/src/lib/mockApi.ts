@@ -121,6 +121,34 @@ class RealApi {
     return await response.json();
   }
 
+  // Settings
+  async getAdminSettings(): Promise<any> {
+    const response = await fetch('/api/settings', {
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) throw new Error('Failed to fetch settings');
+    return await response.json();
+  }
+
+  async updateAdminSettings(data: any): Promise<any> {
+    const response = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update settings');
+    return await response.json();
+  }
+
+  async runManualBackup(): Promise<any> {
+    const response = await fetch('/api/settings/backup/run', {
+      method: 'POST',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) throw new Error('Backup failed');
+    return await response.json();
+  }
+
   // Dashboard / Analytics Stats
   async getManagerStats(): Promise<{ revenue: number; totalUsers: number; pendingComplaints: number }> {
     const response = await fetch('/api/stats/manager', {
@@ -185,6 +213,18 @@ class RealApi {
       headers: { ...getAuthHeader() }
     });
     if (!response.ok) throw new Error('Failed to clear notifications');
+    return await response.json();
+  }
+
+  async getDashboardStats(): Promise<any> {
+    const response = await fetch('/api/stats/dashboard', {
+      headers: { ...getAuthHeader() }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch dashboard stats');
+    }
+    
     return await response.json();
   }
 

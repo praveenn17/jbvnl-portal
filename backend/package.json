@@ -10,7 +10,8 @@
     "seed:complaints": "node seedComplaints.js",
     "seed:audit": "node seedAuditLogs.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed:notifications": "node seedNotifications.js"
+    "seed:notifications": "node seedNotifications.js",
+    "seed:settings": "node seedAdminSettings.js"
   },
   "keywords": [],
   "author": "",

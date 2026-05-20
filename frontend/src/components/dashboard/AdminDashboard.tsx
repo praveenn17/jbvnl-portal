@@ -17,24 +17,6 @@ import AdminSettings from './AdminSettings';
 import ApprovalDetailsModal from './ApprovalDetailsModal';
 import AuditLogs from './AuditLogs';
 
-// ── Mock analytics data ─────────────────────────────────────────────────────
-
-const monthlyRevenue = [
-  { month: 'Oct', revenue: 18.2 },
-  { month: 'Nov', revenue: 19.5 },
-  { month: 'Dec', revenue: 21.0 },
-  { month: 'Jan', revenue: 20.3 },
-  { month: 'Feb', revenue: 22.1 },
-  { month: 'Mar', revenue: 24.0 },
-];
-
-const complaintsByCategory = [
-  { name: 'Power Outage', value: 42, color: '#ef4444' },
-  { name: 'Billing', value: 28, color: '#f59e0b' },
-  { name: 'Technical', value: 18, color: '#3b82f6' },
-  { name: 'New Connection', value: 12, color: '#22c55e' },
-];
-
 // ── Component ────────────────────────────────────────────────────────────────
 
 import { mockApi } from '../../lib/mockApi';
@@ -45,7 +27,13 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [stats, setStats] = useState({ revenue: 0, totalUsers: 0, pendingComplaints: 0 });
+  const [stats, setStats] = useState<any>({ 
+    revenue: 0, 
+    totalUsers: 0, 
+    activeComplaints: 0,
+    monthlyRevenue: [],
+    complaintsByCategory: [] 
+  });
   const [loading, setLoading] = useState(true);
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
 
@@ -54,7 +42,7 @@ const AdminDashboard: React.FC = () => {
       try {
         const [complaintsData, statsData] = await Promise.all([
           mockApi.getComplaints(),
-          mockApi.getManagerStats()
+          mockApi.getDashboardStats()
         ]);
         setComplaints(complaintsData);
         setStats(statsData);
@@ -101,6 +89,9 @@ const AdminDashboard: React.FC = () => {
       default:         return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
+
+  const hasRevenueData = stats.monthlyRevenue && stats.monthlyRevenue.some((d: any) => d.revenue > 0);
+  const hasComplaintData = stats.complaintsByCategory && stats.complaintsByCategory.some((d: any) => d.value > 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -291,20 +282,27 @@ const AdminDashboard: React.FC = () => {
                 <CardTitle className="text-base">Monthly Revenue (₹ Millions)</CardTitle>
                 <CardDescription>Oct 2023 – Mar 2024</CardDescription>
               </CardHeader>
-              <CardContent className="h-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyRevenue} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
-                    <YAxis tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
-                    <Tooltip
-                      formatter={(value: number) => [`₹${value}M`, 'Revenue']}
-                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
-                      labelStyle={{ color: '#94a3b8' }}
-                    />
-                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <CardContent className="h-60 flex items-center justify-center">
+                {!hasRevenueData ? (
+                  <div className="text-muted-foreground text-sm flex flex-col items-center">
+                    <TrendingUp className="h-8 w-8 mb-2 opacity-20" />
+                    No revenue data available yet
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.monthlyRevenue || []} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
+                      <YAxis tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
+                      <Tooltip
+                        formatter={(value: number) => [`₹${value}M`, 'Revenue']}
+                        contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
+                        labelStyle={{ color: '#94a3b8' }}
+                      />
+                      <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -314,35 +312,43 @@ const AdminDashboard: React.FC = () => {
                 <CardTitle className="text-base">Complaints by Category</CardTitle>
                 <CardDescription>Distribution of active complaints</CardDescription>
               </CardHeader>
-              <CardContent className="h-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={complaintsByCategory}
-                      cx="45%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={85}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {complaintsByCategory.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Legend
-                      layout="vertical"
-                      align="right"
-                      verticalAlign="middle"
-                      formatter={(value) => <span style={{ fontSize: 12 }}>{value}</span>}
-                    />
-                    <Tooltip
-                      formatter={(value: number) => [`${value}%`, 'Share']}
-                      contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
-                      labelStyle={{ color: '#94a3b8' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+              <CardContent className="h-60 flex items-center justify-center">
+                {!hasComplaintData ? (
+                  <div className="text-muted-foreground text-sm flex flex-col items-center">
+                    <AlertTriangle className="h-8 w-8 mb-2 opacity-20" />
+                    No complaint category data available yet
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats.complaintsByCategory || []}
+                        cx="45%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={3}
+                        dataKey="value"
+                        nameKey="name"
+                      >
+                        {(stats.complaintsByCategory || []).map((entry: any, index: number) => (
+                          <Cell key={index} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Legend
+                        layout="vertical"
+                        align="right"
+                        verticalAlign="middle"
+                        formatter={(value) => <span style={{ fontSize: 12 }}>{value}</span>}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [`${value}`, 'Complaints']}
+                        contentStyle={{ borderRadius: 8, border: '1px solid hsl(217, 33%, 28%)', background: 'hsl(217, 33%, 17%)', color: '#f8fafc' }}
+                        labelStyle={{ color: '#94a3b8' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </div>

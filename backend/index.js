@@ -1,36 +1,26 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 
-// Remove fs to prevent Vercel crashes (Vercel has read-only filesystem)
-
 const app = express();
-
-// Avoid background connections breaking on Vercel Serverless
-// We use a middleware to ensure Database is connected BEFORE routing
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error("Vercel DB Connection Error:", err);
-    res.status(500).json({ message: "Database connection failed", error: err.message });
-  }
-});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Request Logger for Debugging
+// Request Logger
 app.use((req, res, next) => {
   const start = Date.now();
+
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const log = `${new Date().toISOString()} - ${req.method} ${req.url} ${res.statusCode} ${duration}ms\n`;
-    console.log(log);
+    console.log(
+      `${new Date().toISOString()} - ${req.method} ${req.url} ${res.statusCode} ${duration}ms`
+    );
   });
+
   next();
 });
 
@@ -41,21 +31,43 @@ app.use('/api/complaints', require('./routes/complaintRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/audit-logs', require('./routes/auditRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/settings', require('./routes/settingsRoutes'));
 
 app.get('/api/status', (req, res) => {
-  res.json({ 
-    status: 'online', 
+  res.json({
+    status: 'online',
     message: 'JBVNL API is running',
-    environment: process.env.NODE_ENV 
+    environment: process.env.NODE_ENV,
   });
 });
 
-// Define Ports
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('[SERVER ERROR]', err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal server error',
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
-// Export for Vercel Serverless Functions
-module.exports = app;
+// Local development/server start
+const startServer = async () => {
+  try {
+    await connectDB();
 
-  app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-  });
+    app.listen(PORT, () => {
+      console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('[STARTUP ERROR]', error.message);
+  }
+};
+
+// Do not auto-listen on Vercel serverless
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+// Export app for Vercel/serverless
+module.exports = app;

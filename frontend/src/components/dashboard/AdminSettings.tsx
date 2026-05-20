@@ -18,46 +18,54 @@ import {
 } from 'lucide-react';
 
 // ── Settings state types ─────────────────────────────────────────────────────
-interface SettingsState {
+export interface SettingsState {
   autoApprovalThreshold: number;
   emailNotifications: { registration: boolean; complaints: boolean; billing: boolean; summary: boolean };
   smsAlerts: { escalation: boolean; payment: boolean; outage: boolean };
-  backupSchedule: string;
-  lastBackup: string;
+  backupSettings: { schedule: string; lastBackupAt: string; status: string; frequency: string };
   securityLevel: 'standard' | 'high' | 'strict';
   notificationPrefs: { email: boolean; sms: boolean; push: boolean; weeklyReport: boolean };
   securitySettings: { passwordPolicy: boolean; otpVerification: boolean; adminProtection: boolean; sessionTimeout: number };
 }
 
-const DEFAULT_SETTINGS: SettingsState = {
-  autoApprovalThreshold: 5,
-  emailNotifications: { registration: true, complaints: true, billing: false, summary: true },
-  smsAlerts: { escalation: true, payment: false, outage: true },
-  backupSchedule: 'Daily 2:00 AM',
-  lastBackup: '2024-03-15 02:00 AM',
-  securityLevel: 'standard',
-  notificationPrefs: { email: true, sms: true, push: false, weeklyReport: true },
-  securitySettings: { passwordPolicy: true, otpVerification: true, adminProtection: true, sessionTimeout: 30 },
-};
-
 type ModalKey = 'autoApproval' | 'emailNotifications' | 'smsAlerts' | 'backup' | 'security'
   | 'userManagement' | 'notificationPrefs' | 'securitySettings' | 'backupRecovery' | null;
 
+import { mockApi } from '../../lib/mockApi';
+
 const AdminSettings: React.FC = () => {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<SettingsState | null>(null);
+  const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState<ModalKey>(null);
   const [backupLoading, setBackupLoading] = useState(false);
 
   // Temp state for editing inside modals
-  const [tempThreshold, setTempThreshold] = useState(settings.autoApprovalThreshold);
-  const [tempEmail, setTempEmail] = useState(settings.emailNotifications);
-  const [tempSms, setTempSms] = useState(settings.smsAlerts);
-  const [tempSecLevel, setTempSecLevel] = useState(settings.securityLevel);
-  const [tempNotifPrefs, setTempNotifPrefs] = useState(settings.notificationPrefs);
-  const [tempSecSettings, setTempSecSettings] = useState(settings.securitySettings);
+  const [tempThreshold, setTempThreshold] = useState(5);
+  const [tempEmail, setTempEmail] = useState({ registration: true, complaints: true, billing: false, summary: true });
+  const [tempSms, setTempSms] = useState({ escalation: true, payment: false, outage: true });
+  const [tempSecLevel, setTempSecLevel] = useState<'standard'|'high'|'strict'>('standard');
+  const [tempNotifPrefs, setTempNotifPrefs] = useState({ email: true, sms: true, push: false, weeklyReport: true });
+  const [tempSecSettings, setTempSecSettings] = useState({ passwordPolicy: true, otpVerification: true, adminProtection: true, sessionTimeout: 30 });
+
+  React.useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const data = await mockApi.getAdminSettings();
+      setSettings(data);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to load settings', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openSetting = (key: ModalKey) => {
+    if (!settings) return;
     // Sync temp state from current settings
     setTempThreshold(settings.autoApprovalThreshold);
     setTempEmail({ ...settings.emailNotifications });
@@ -68,26 +76,52 @@ const AdminSettings: React.FC = () => {
     setOpenModal(key);
   };
 
-  const saveAndClose = (msg: string) => {
-    toast({ title: '✓ Settings Updated', description: msg });
-    setOpenModal(null);
+  const saveSetting = async (updateData: Partial<SettingsState>, msg: string) => {
+    try {
+      const updated = await mockApi.updateAdminSettings(updateData);
+      setSettings(updated);
+      toast({ title: '✓ Settings Updated', description: msg });
+      setOpenModal(null);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update settings', variant: 'destructive' });
+    }
   };
 
   const handleManualBackup = async () => {
     setBackupLoading(true);
-    await new Promise(r => setTimeout(r, 1800));
-    const now = new Date().toLocaleString('en-IN');
-    setSettings(s => ({ ...s, lastBackup: now }));
-    setBackupLoading(false);
-    toast({ title: '✓ Backup Complete', description: 'Database backup completed successfully.' });
+    try {
+      const data = await mockApi.runManualBackup();
+      if (settings) {
+        setSettings({
+          ...settings,
+          backupSettings: { ...settings.backupSettings, lastBackupAt: data.lastBackupAt }
+        });
+      }
+      toast({ title: '✓ Backup Complete', description: 'Database backup completed successfully.' });
+    } catch (error) {
+      toast({ title: 'Backup Failed', description: 'Could not complete manual backup.', variant: 'destructive' });
+    } finally {
+      setBackupLoading(false);
+    }
   };
 
   // ── Setting rows for the overview list ─────────────────────────────────────
+  if (loading || !settings) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin mb-4" />
+          <p>Loading settings...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const settingRows: { label: string; value: string; valueClass?: string; icon: React.ReactNode; key: ModalKey }[] = [
     { label: 'Auto-Approval Threshold', value: `${settings.autoApprovalThreshold} requests`, icon: <Gauge className="h-4 w-4" />, key: 'autoApproval' },
     { label: 'Email Notifications', value: 'Enabled', valueClass: 'text-emerald-400', icon: <Mail className="h-4 w-4" />, key: 'emailNotifications' },
     { label: 'SMS Alerts', value: 'Enabled', valueClass: 'text-emerald-400', icon: <MessageSquare className="h-4 w-4" />, key: 'smsAlerts' },
-    { label: 'Database Backup', value: settings.backupSchedule, valueClass: 'text-muted-foreground', icon: <Database className="h-4 w-4" />, key: 'backup' },
+    { label: 'Database Backup', value: settings.backupSettings?.schedule || 'Daily', valueClass: 'text-muted-foreground', icon: <Database className="h-4 w-4" />, key: 'backup' },
     { label: 'Security Level', value: settings.securityLevel.charAt(0).toUpperCase() + settings.securityLevel.slice(1), valueClass: settings.securityLevel === 'strict' ? 'text-destructive' : settings.securityLevel === 'high' ? 'text-amber-400' : 'text-yellow-500', icon: <Shield className="h-4 w-4" />, key: 'security' },
   ];
 
@@ -147,7 +181,7 @@ const AdminSettings: React.FC = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenModal(null)}>Cancel</Button>
-            <Button onClick={() => { setSettings(s => ({ ...s, autoApprovalThreshold: tempThreshold })); saveAndClose('Auto-approval threshold updated successfully.'); }}>Save Changes</Button>
+            <Button onClick={() => saveSetting({ autoApprovalThreshold: tempThreshold }, 'Auto-approval threshold updated successfully.')}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -174,7 +208,7 @@ const AdminSettings: React.FC = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenModal(null)}>Cancel</Button>
-            <Button onClick={() => { setSettings(s => ({ ...s, emailNotifications: tempEmail })); saveAndClose('Email notification preferences saved.'); }}>Save</Button>
+            <Button onClick={() => saveSetting({ emailNotifications: tempEmail }, 'Email notification preferences saved.')}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -200,7 +234,7 @@ const AdminSettings: React.FC = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenModal(null)}>Cancel</Button>
-            <Button onClick={() => { setSettings(s => ({ ...s, smsAlerts: tempSms })); saveAndClose('SMS alert preferences saved.'); }}>Save</Button>
+            <Button onClick={() => saveSetting({ smsAlerts: tempSms }, 'SMS alert preferences saved.')}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -215,11 +249,13 @@ const AdminSettings: React.FC = () => {
           <div className="space-y-4 py-2">
             <div className="flex justify-between p-3 rounded-lg bg-muted/40 border border-border/50">
               <span className="text-sm text-muted-foreground">Schedule</span>
-              <span className="text-sm font-medium text-foreground">{settings.backupSchedule}</span>
+              <span className="text-sm font-medium text-foreground">{settings.backupSettings?.schedule || 'Daily 2:00 AM'}</span>
             </div>
             <div className="flex justify-between p-3 rounded-lg bg-muted/40 border border-border/50">
               <span className="text-sm text-muted-foreground">Last Backup</span>
-              <span className="text-sm font-medium text-foreground">{settings.lastBackup}</span>
+              <span className="text-sm font-medium text-foreground">
+                {settings.backupSettings?.lastBackupAt ? new Date(settings.backupSettings.lastBackupAt).toLocaleString('en-IN') : 'Never'}
+              </span>
             </div>
             <div className="flex justify-between p-3 rounded-lg bg-muted/40 border border-border/50">
               <span className="text-sm text-muted-foreground">Status</span>
@@ -259,7 +295,7 @@ const AdminSettings: React.FC = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenModal(null)}>Cancel</Button>
-            <Button onClick={() => { setSettings(s => ({ ...s, securityLevel: tempSecLevel })); saveAndClose(`Security level set to "${tempSecLevel}".`); }}>Save</Button>
+            <Button onClick={() => saveSetting({ securityLevel: tempSecLevel }, `Security level set to "${tempSecLevel}".`)}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -315,7 +351,7 @@ const AdminSettings: React.FC = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenModal(null)}>Cancel</Button>
-            <Button onClick={() => { setSettings(s => ({ ...s, notificationPrefs: tempNotifPrefs })); saveAndClose('Notification preferences saved.'); }}>Save</Button>
+            <Button onClick={() => saveSetting({ notificationPrefs: tempNotifPrefs }, 'Notification preferences saved.')}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -345,7 +381,7 @@ const AdminSettings: React.FC = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenModal(null)}>Cancel</Button>
-            <Button onClick={() => { setSettings(s => ({ ...s, securitySettings: tempSecSettings })); saveAndClose('Security settings updated.'); }}>Save</Button>
+            <Button onClick={() => saveSetting({ securitySettings: tempSecSettings }, 'Security settings updated.')}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -359,9 +395,9 @@ const AdminSettings: React.FC = () => {
           </DialogHeader>
           <div className="space-y-3 py-2">
             {[
-              { label: 'Last Backup', value: settings.lastBackup },
-              { label: 'Recovery Point', value: settings.lastBackup },
-              { label: 'Backup Frequency', value: settings.backupSchedule },
+              { label: 'Last Backup', value: settings.backupSettings?.lastBackupAt ? new Date(settings.backupSettings.lastBackupAt).toLocaleString('en-IN') : 'Never' },
+              { label: 'Recovery Point', value: settings.backupSettings?.lastBackupAt ? new Date(settings.backupSettings.lastBackupAt).toLocaleString('en-IN') : 'Never' },
+              { label: 'Backup Frequency', value: settings.backupSettings?.schedule || 'Daily' },
               { label: 'Storage Used', value: '2.4 GB / 10 GB' },
             ].map(r => (
               <div key={r.label} className="flex justify-between p-3 rounded-lg bg-muted/40 border border-border/50">
