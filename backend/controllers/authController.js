@@ -17,6 +17,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendOtpEmail } = require('../utils/emailService');
+const { logAudit } = require('../utils/auditLogger');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const OTP_EXPIRY_MS = 10 * 60 * 1000;       // 10 minutes
@@ -461,6 +462,19 @@ const authUser = async (req, res) => {
 
     console.warn(`[LOGIN] Success: ${email} (${user.role})`);
 
+    // Audit Log
+    logAudit({
+      action: 'LOGIN_SUCCESS',
+      message: `User logged in successfully`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'auth',
+      targetId: user._id,
+      severity: 'info',
+    });
+
     return res.json({
       _id: user._id,
       name: user.name,
@@ -515,6 +529,27 @@ const updateUserStatus = async (req, res) => {
 
     user.status = status;
     await user.save();
+
+    // Audit log
+    const actionMap = {
+      approved: 'USER_APPROVED',
+      rejected: 'USER_REJECTED',
+      hold: 'USER_PUT_ON_HOLD',
+      pending: 'USER_STATUS_PENDING'
+    };
+    logAudit({
+      action: actionMap[status] || 'USER_STATUS_UPDATED',
+      message: `Admin ${status} user ${user.name}`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'user',
+      targetId: user._id,
+      targetLabel: user.email,
+      metadata: { newStatus: status },
+      severity: status === 'rejected' ? 'warning' : 'info',
+    });
 
     return res.json({ message: `User status updated to ${status}`, user });
   } catch (error) {

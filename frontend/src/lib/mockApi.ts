@@ -59,8 +59,10 @@ class RealApi {
       },
       body: JSON.stringify(complaint)
     });
-    
-    if (!response.ok) throw new Error('Failed to file complaint');
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to file complaint');
+    }
     return await response.json();
   }
 
@@ -73,8 +75,10 @@ class RealApi {
       },
       body: JSON.stringify({ status, note })
     });
-    
-    if (!response.ok) throw new Error('Failed to update complaint status');
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update complaint status');
+    }
     return await response.json();
   }
 
@@ -84,7 +88,10 @@ class RealApi {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ assignedTo, assignedTeam, note })
     });
-    if (!response.ok) throw new Error('Failed to assign complaint');
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to assign complaint');
+    }
     return await response.json();
   }
 
@@ -94,7 +101,10 @@ class RealApi {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ priority, note })
     });
-    if (!response.ok) throw new Error('Failed to update priority');
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update priority');
+    }
     return await response.json();
   }
 
@@ -104,7 +114,10 @@ class RealApi {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ note })
     });
-    if (!response.ok) throw new Error('Failed to add note');
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to add note');
+    }
     return await response.json();
   }
 
@@ -116,6 +129,21 @@ class RealApi {
     
     if (!response.ok) {
       return { revenue: 0, totalUsers: 0, pendingComplaints: 0 };
+    }
+    
+    return await response.json();
+  }
+
+  // Audit Logs
+  async getAuditLogs(filters?: Record<string, string>): Promise<{ logs: any[]; total: number; page: number; limit: number }> {
+    const queryParams = new URLSearchParams(filters || {}).toString();
+    const url = queryParams ? `/api/audit-logs?${queryParams}` : '/api/audit-logs';
+    const response = await fetch(url, {
+      headers: { ...getAuthHeader() }
+    });
+    
+    if (!response.ok) {
+      return { logs: [], total: 0, page: 1, limit: 20 };
     }
     
     return await response.json();

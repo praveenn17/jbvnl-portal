@@ -51,9 +51,8 @@ const complaintSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-complaintSchema.pre('save', function(next) {
+complaintSchema.pre('save', function() {
   this.updatedAt = Date.now();
-  next();
 });
 
 module.exports = mongoose.model('Complaint', complaintSchema);

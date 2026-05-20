@@ -33,12 +33,14 @@ const ActiveComplaints: React.FC = () => {
   const [updateStatusId, setUpdateStatusId] = useState<string | null>(null);
   const [assignId, setAssignId] = useState<string | null>(null);
   const [noteId, setNoteId] = useState<string | null>(null);
+  const [priorityId, setPriorityId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
 
   // Form states
   const [newStatus, setNewStatus] = useState('');
   const [newTeam, setNewTeam] = useState('');
   const [newNote, setNewNote] = useState('');
+  const [newPriority, setNewPriority] = useState('');
 
   // Filter state
   const [filterStatus, setFilterStatus] = useState('all');
@@ -78,6 +80,7 @@ const ActiveComplaints: React.FC = () => {
   const updatingStatus = getComp(updateStatusId);
   const assigning = getComp(assignId);
   const noting = getComp(noteId);
+  const changingPriority = getComp(priorityId);
 
   const handleUpdateStatus = async () => {
     if (!updateStatusId || !newStatus) return;
@@ -86,8 +89,8 @@ const ActiveComplaints: React.FC = () => {
       toast({ title: 'Success', description: 'Complaint status updated.' });
       setUpdateStatusId(null);
       fetchComplaints();
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to update status.', variant: 'destructive' });
     }
   };
 
@@ -98,8 +101,8 @@ const ActiveComplaints: React.FC = () => {
       toast({ title: 'Success', description: 'Complaint assigned.' });
       setAssignId(null);
       fetchComplaints();
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to assign complaint.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to assign complaint.', variant: 'destructive' });
     }
   };
 
@@ -110,8 +113,20 @@ const ActiveComplaints: React.FC = () => {
       toast({ title: 'Success', description: 'Note added.' });
       setNoteId(null);
       fetchComplaints();
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to add note.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to add note.', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdatePriority = async () => {
+    if (!priorityId || !newPriority) return;
+    try {
+      await mockApi.updateComplaintPriority(priorityId, newPriority, newNote);
+      toast({ title: 'Success', description: 'Complaint priority updated.' });
+      setPriorityId(null);
+      fetchComplaints();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to update priority.', variant: 'destructive' });
     }
   };
 
@@ -199,6 +214,7 @@ const ActiveComplaints: React.FC = () => {
                         <Button variant="outline" size="sm" onClick={() => setDetailId(c.id || c._id || null)}><Eye className="h-4 w-4 mr-1" />Details</Button>
                         <Button variant="outline" size="sm" onClick={() => { setAssignId(c.id || c._id || null); setNewTeam(c.assignedTeam || ''); setNewNote(''); }}><Users className="h-4 w-4 mr-1" />Assign</Button>
                         <Button variant="outline" size="sm" onClick={() => { setUpdateStatusId(c.id || c._id || null); setNewStatus(c.status); setNewNote(''); }}><RefreshCw className="h-4 w-4 mr-1" />Status</Button>
+                        <Button variant="outline" size="sm" onClick={() => { setPriorityId(c.id || c._id || null); setNewPriority(c.priority); setNewNote(''); }}><AlertTriangle className="h-4 w-4 mr-1" />Priority</Button>
                         <Button variant="outline" size="sm" onClick={() => { setNoteId(c.id || c._id || null); setNewNote(''); }}><MessageCircle className="h-4 w-4 mr-1" />Note</Button>
                         <Button variant="outline" size="sm" onClick={() => setContactId(c.id || c._id || null)}><Phone className="h-4 w-4 mr-1" />Contact</Button>
                       </div>
@@ -336,10 +352,29 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* ─── UPDATE PRIORITY MODAL ────────────────────────────────────────────── */}
+      <Dialog open={!!priorityId} onOpenChange={() => setPriorityId(null)}>
+        <DialogContent>
+          {changingPriority && (<>
+            <DialogHeader>
+              <DialogTitle>Update Priority</DialogTitle>
+              <DialogDescription>{changingPriority.title}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2"><Label>New Priority</Label>
+                <Select value={newPriority} onValueChange={setNewPriority}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select>
+              </div>
+              <div className="space-y-2"><Label>Reason for Change (optional)</Label><Textarea placeholder="Explain why priority is changing..." value={newNote} onChange={e => setNewNote(e.target.value)} /></div>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={() => setPriorityId(null)}>Cancel</Button><Button onClick={handleUpdatePriority}>Save Priority</Button></DialogFooter>
+          </>)}
+        </DialogContent>
+      </Dialog>
+
       {/* ─── FILTER MODAL ─────────────────────────────────────────────────────── */}
       <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Filter & Sort Complaints</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Filter & Sort Complaints</DialogTitle><DialogDescription className="sr-only">Filter complaints</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2"><Label>Status</Label>
               <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="all">All</SelectItem>{STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select>

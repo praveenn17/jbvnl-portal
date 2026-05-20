@@ -1,4 +1,5 @@
 const Bill = require('../models/Bill');
+const { logAudit } = require('../utils/auditLogger');
 
 // @desc    Get all bills for a consumer
 // @route   GET /api/bills/:consumerNumber
@@ -32,6 +33,20 @@ const getBillById = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to view this bill' });
     }
 
+    // Optional: Log bill view/download
+    logAudit({
+      action: 'BILL_DOWNLOADED',
+      message: `Consumer viewed/downloaded bill ${bill.billNumber}`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'bill',
+      targetId: bill._id,
+      targetLabel: bill.billNumber,
+      severity: 'info',
+    });
+
     res.json(bill);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -48,6 +63,21 @@ const payBill = async (req, res) => {
     if (bill) {
       bill.status = 'paid';
       const updatedBill = await bill.save();
+
+      logAudit({
+        action: 'BILL_PAID',
+        message: `Bill ${updatedBill.billNumber} paid`,
+        actor: req.user._id,
+        actorName: req.user.name,
+        actorEmail: req.user.email,
+        actorRole: req.user.role,
+        targetType: 'bill',
+        targetId: updatedBill._id,
+        targetLabel: updatedBill.billNumber,
+        metadata: { amount: updatedBill.amount },
+        severity: 'info',
+      });
+
       res.json(updatedBill);
     } else {
       res.status(404).json({ message: 'Bill not found' });
@@ -74,6 +104,21 @@ const createBill = async (req, res) => {
     });
 
     const createdBill = await bill.save();
+
+    logAudit({
+      action: 'BILL_CREATED',
+      message: `Admin/Manager created bill ${createdBill.billNumber}`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'bill',
+      targetId: createdBill._id,
+      targetLabel: createdBill.billNumber,
+      metadata: { amount, units },
+      severity: 'info',
+    });
+
     res.status(201).json(createdBill);
   } catch (error) {
     res.status(400).json({ message: error.message });

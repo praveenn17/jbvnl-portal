@@ -62,3 +62,19 @@ export interface NewConnection {
   status: 'pending' | 'approved' | 'rejected' | 'in_progress';
   createdAt: string;
 }
+
+export interface AuditLog {
+  _id: string;
+  action: string;
+  message: string;
+  actor?: any;
+  actorName?: string;
+  actorEmail?: string;
+  actorRole: 'admin' | 'manager' | 'consumer' | 'system';
+  targetType?: string;
+  targetId?: string;
+  targetLabel?: string;
+  metadata?: any;
+  severity: 'info' | 'warning' | 'critical';
+  createdAt: string;
+}

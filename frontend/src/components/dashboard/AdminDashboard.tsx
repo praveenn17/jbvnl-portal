@@ -15,6 +15,7 @@ import { User, Complaint } from '../../types';
 import { Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Clock, XCircle, Settings, Eye } from 'lucide-react';
 import AdminSettings from './AdminSettings';
 import ApprovalDetailsModal from './ApprovalDetailsModal';
+import AuditLogs from './AuditLogs';
 
 // ── Mock analytics data ─────────────────────────────────────────────────────
 
@@ -161,10 +162,11 @@ const AdminDashboard: React.FC = () => {
 
       {/* Admin Content Tabs */}
       <Tabs defaultValue="approvals" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="approvals">User Approvals</TabsTrigger>
           <TabsTrigger value="complaints">Complaints</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="auditLogs">Audit Logs</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -242,7 +244,7 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="grid gap-4">
             {complaints.map((complaint) => (
-              <Card key={complaint.id} className="hover-scale">
+              <Card key={complaint.id || complaint._id} className="hover-scale">
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
@@ -265,8 +267,8 @@ const AdminDashboard: React.FC = () => {
                       <span className="text-sm">Status: <Badge variant="secondary">{complaint.status}</Badge></span>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">View Details</Button>
-                      <Button size="sm" className="bg-primary hover:bg-primary/90">Update Status</Button>
+                      <Button variant="outline" size="sm" onClick={() => navigate('/admin/active-complaints')}>View Details</Button>
+                      <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={() => navigate('/admin/active-complaints')}>Update Status</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -370,6 +372,10 @@ const AdminDashboard: React.FC = () => {
 
         <TabsContent value="settings">
           <AdminSettings />
+        </TabsContent>
+
+        <TabsContent value="auditLogs">
+          <AuditLogs />
         </TabsContent>
       </Tabs>
       

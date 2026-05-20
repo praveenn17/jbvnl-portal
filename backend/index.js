@@ -39,6 +39,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/bills', require('./routes/billRoutes'));
 app.use('/api/complaints', require('./routes/complaintRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
+app.use('/api/audit-logs', require('./routes/auditRoutes'));
 
 app.get('/api/status', (req, res) => {
   res.json({ 

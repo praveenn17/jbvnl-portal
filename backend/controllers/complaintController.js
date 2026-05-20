@@ -1,4 +1,5 @@
 const Complaint = require('../models/Complaint');
+const { logAudit } = require('../utils/auditLogger');
 
 // --- Helpers ---
 const getSLAHours = (priority) => {
@@ -144,6 +145,21 @@ const fileComplaint = async (req, res) => {
     });
 
     const createdComplaint = await complaint.save();
+
+    logAudit({
+      action: 'COMPLAINT_CREATED',
+      message: `Consumer created complaint: ${title}`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'complaint',
+      targetId: createdComplaint._id,
+      targetLabel: createdComplaint.title,
+      metadata: { priority: complaintPriority, category },
+      severity: 'info',
+    });
+
     res.status(201).json(createdComplaint);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -181,6 +197,21 @@ const assignComplaint = async (req, res) => {
     });
 
     const updatedComplaint = await complaint.save();
+
+    logAudit({
+      action: 'COMPLAINT_ASSIGNED',
+      message: `Complaint assigned to ${assignedTeam || 'manager'}`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'complaint',
+      targetId: updatedComplaint._id,
+      targetLabel: updatedComplaint.title,
+      metadata: { assignedTo, assignedTeam },
+      severity: 'info',
+    });
+
     res.json(updatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -238,6 +269,21 @@ const updateComplaintStatus = async (req, res) => {
     });
 
     const updatedComplaint = await complaint.save();
+
+    logAudit({
+      action: 'COMPLAINT_STATUS_UPDATED',
+      message: `Complaint status updated to ${status}`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'complaint',
+      targetId: updatedComplaint._id,
+      targetLabel: updatedComplaint.title,
+      metadata: { status, note },
+      severity: status === 'resolved' ? 'info' : 'warning',
+    });
+
     res.json(updatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -283,6 +329,21 @@ const updateComplaintPriority = async (req, res) => {
     });
 
     const updatedComplaint = await complaint.save();
+
+    logAudit({
+      action: 'COMPLAINT_PRIORITY_CHANGED',
+      message: `Complaint priority escalated to ${priority}`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'complaint',
+      targetId: updatedComplaint._id,
+      targetLabel: updatedComplaint.title,
+      metadata: { oldPriority, newPriority: priority },
+      severity: 'warning',
+    });
+
     res.json(updatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -309,6 +370,21 @@ const addComplaintNote = async (req, res) => {
 
     complaint.lastUpdatedBy = req.user._id;
     const updatedComplaint = await complaint.save();
+
+    logAudit({
+      action: 'NOTE_ADDED',
+      message: `Admin/Manager added note to complaint`,
+      actor: req.user._id,
+      actorName: req.user.name,
+      actorEmail: req.user.email,
+      actorRole: req.user.role,
+      targetType: 'complaint',
+      targetId: updatedComplaint._id,
+      targetLabel: updatedComplaint.title,
+      metadata: { note },
+      severity: 'info',
+    });
+
     res.json(updatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
