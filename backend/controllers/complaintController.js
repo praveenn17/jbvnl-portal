@@ -1,5 +1,7 @@
 const Complaint = require('../models/Complaint');
 const { logAudit } = require('../utils/auditLogger');
+const notificationService = require('../utils/notificationService');
+const User = require('../models/User'); // Required to lookup consumer for notifications
 
 // --- Helpers ---
 const getSLAHours = (priority) => {
@@ -212,6 +214,17 @@ const assignComplaint = async (req, res) => {
       severity: 'info',
     });
 
+    if (assignedTo) {
+      notificationService.createNotificationForUser(assignedTo, {
+        title: 'Complaint Assigned',
+        message: `A new complaint (${updatedComplaint.title}) has been assigned to you.`,
+        type: 'COMPLAINT_ASSIGNED',
+        priority: 'high',
+        targetType: 'complaint',
+        targetId: updatedComplaint._id
+      });
+    }
+
     res.json(updatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -284,6 +297,21 @@ const updateComplaintStatus = async (req, res) => {
       severity: status === 'resolved' ? 'info' : 'warning',
     });
 
+    // Notify consumer if a consumer is tied to the complaint
+    if (updatedComplaint.consumerNumber) {
+      const consumer = await User.findOne({ consumerNumber: updatedComplaint.consumerNumber });
+      if (consumer) {
+        notificationService.createNotificationForUser(consumer._id, {
+          title: 'Complaint Status Updated',
+          message: `The status of your complaint (${updatedComplaint.title}) is now ${status}.`,
+          type: 'COMPLAINT_STATUS_UPDATED',
+          priority: 'normal',
+          targetType: 'complaint',
+          targetId: updatedComplaint._id
+        });
+      }
+    }
+
     res.json(updatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -343,6 +371,17 @@ const updateComplaintPriority = async (req, res) => {
       metadata: { oldPriority, newPriority: priority },
       severity: 'warning',
     });
+
+    if (updatedComplaint.assignedTo) {
+      notificationService.createNotificationForUser(updatedComplaint.assignedTo, {
+        title: 'Complaint Priority Escalated',
+        message: `Priority for complaint (${updatedComplaint.title}) changed to ${priority}.`,
+        type: 'COMPLAINT_PRIORITY_CHANGED',
+        priority: 'urgent',
+        targetType: 'complaint',
+        targetId: updatedComplaint._id
+      });
+    }
 
     res.json(updatedComplaint);
   } catch (error) {

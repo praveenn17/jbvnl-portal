@@ -18,6 +18,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendOtpEmail } = require('../utils/emailService');
 const { logAudit } = require('../utils/auditLogger');
+const notificationService = require('../utils/notificationService');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const OTP_EXPIRY_MS = 10 * 60 * 1000;       // 10 minutes
@@ -435,6 +436,18 @@ const registerUser = async (req, res) => {
       severity: 'info',
     });
 
+    // Notify admins of new pending manager or consumer
+    if (savedUser.status === 'pending') {
+      notificationService.createNotificationForRole('admin', {
+        title: 'New Manager Registration',
+        message: `${savedUser.name} has registered and is pending approval.`,
+        type: 'USER_REGISTRATION',
+        priority: 'normal',
+        targetType: 'user',
+        targetId: savedUser._id
+      });
+    }
+
     return res.status(201).json({
       _id: savedUser._id,
       name: savedUser.name,
@@ -579,7 +592,28 @@ const updateUserStatus = async (req, res) => {
     }
 
     user.status = status;
-    await user.save();
+    const updatedUser = await user.save();
+
+    // Trigger Notification for the user being approved/rejected
+    if (status === 'approved') {
+      notificationService.createNotificationForUser(updatedUser._id, {
+        title: 'Account Approved',
+        message: 'Your account has been approved. You can now access your dashboard.',
+        type: 'USER_APPROVAL',
+        priority: 'high',
+        targetType: 'user',
+        targetId: updatedUser._id
+      });
+    } else if (status === 'rejected') {
+      notificationService.createNotificationForUser(updatedUser._id, {
+        title: 'Account Rejected',
+        message: 'Your account application has been rejected by the administrator.',
+        type: 'USER_APPROVAL',
+        priority: 'normal',
+        targetType: 'user',
+        targetId: updatedUser._id
+      });
+    }
 
     // Audit log
     const actionMap = {

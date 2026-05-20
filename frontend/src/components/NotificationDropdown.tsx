@@ -10,65 +10,111 @@ import {
 import { Button } from '@/components/ui/button';
 import { Bell, Check, Trash2, Info, AlertTriangle, ShieldCheck, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { mockApi } from '../lib/mockApi';
 
 type Notification = {
-  id: string;
+  _id: string;
   title: string;
   message: string;
-  time: string;
-  read: boolean;
-  type: 'info' | 'alert' | 'success' | 'payment';
+  isRead: boolean;
+  priority: string;
+  type: string;
+  createdAt: string;
 };
 
 const NotificationDropdown: React.FC = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const data = await mockApi.getNotifications();
+      setNotifications(data);
+      const unreadData = await mockApi.getUnreadNotificationCount();
+      setUnreadCount(unreadData);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Generate mock notifications based on role
-    if (!user) return;
-
-    let mockNotifs: Notification[] = [];
-    const now = new Date();
-    
-    if (user.role === 'admin') {
-      mockNotifs = [
-        { id: '1', title: 'New Manager Request', message: 'A new manager registration is pending approval.', time: '10 mins ago', read: false, type: 'info' },
-        { id: '2', title: 'Backup Successful', message: 'Database backup completed successfully at 2:00 AM.', time: '5 hours ago', read: false, type: 'success' },
-        { id: '3', title: 'High Priority Complaint', message: 'Urgent power outage reported in Sector 5.', time: '1 day ago', read: true, type: 'alert' },
-      ];
-    } else if (user.role === 'manager') {
-      mockNotifs = [
-        { id: '1', title: 'Complaint Assigned', message: 'You have been assigned 3 new complaints.', time: '30 mins ago', read: false, type: 'info' },
-        { id: '2', title: 'Billing Query', message: 'Consumer JBVNL002 raised a billing query.', time: '2 hours ago', read: false, type: 'info' },
-        { id: '3', title: 'Emergency Outage', message: 'Transformer failure reported in Dhanbad.', time: '1 day ago', read: true, type: 'alert' },
-      ];
-    } else {
-      mockNotifs = [
-        { id: '1', title: 'Bill Generated', message: 'Your electricity bill for March is generated.', time: '2 hours ago', read: false, type: 'payment' },
-        { id: '2', title: 'Complaint Updated', message: 'Status of your complaint CMP-2024-001 changed to In Progress.', time: '1 day ago', read: false, type: 'success' },
-        { id: '3', title: 'Payment Reminder', message: 'Your due date is in 3 days.', time: '2 days ago', read: true, type: 'alert' },
-      ];
-    }
-    
-    setNotifications(mockNotifs);
+    fetchNotifications();
+    // In a real app, you might want to poll here:
+    // const interval = setInterval(fetchNotifications, 60000);
+    // return () => clearInterval(interval);
   }, [user]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      await mockApi.markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
   };
 
-  const clearAll = () => {
-    setNotifications([]);
+  const clearAll = async () => {
+    try {
+      await mockApi.clearAllNotifications();
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to clear notifications:', error);
+    }
   };
 
-  const getIcon = (type: string) => {
+  const handleNotificationClick = async (notif: Notification) => {
+    if (!notif.isRead) {
+      try {
+        await mockApi.markNotificationRead(notif._id);
+        setNotifications(prev => 
+          prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error('Failed to mark as read:', error);
+      }
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await mockApi.deleteNotification(id);
+      setNotifications(prev => prev.filter(n => n._id !== id));
+      // Re-fetch unread count just to be safe
+      const count = await mockApi.getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
+
+  const getIcon = (type: string, priority: string) => {
+    if (priority === 'urgent' || priority === 'high') {
+      return <AlertTriangle className="h-4 w-4 text-destructive" />;
+    }
     switch (type) {
-      case 'alert': return <AlertTriangle className="h-4 w-4 text-destructive" />;
-      case 'success': return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
-      case 'payment': return <CreditCard className="h-4 w-4 text-blue-500" />;
+      case 'USER_APPROVAL': return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
+      case 'BILL_UPDATED': return <CreditCard className="h-4 w-4 text-blue-500" />;
       default: return <Info className="h-4 w-4 text-primary" />;
     }
   };
@@ -101,31 +147,50 @@ const NotificationDropdown: React.FC = () => {
         <DropdownMenuSeparator />
         
         <div className="max-h-80 overflow-y-auto">
-          {notifications.length === 0 ? (
+          {loading && notifications.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              Loading...
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               No new notifications
             </div>
           ) : (
             notifications.map(notif => (
-              <DropdownMenuItem key={notif.id} className="flex flex-col items-start p-4 cursor-default focus:bg-muted/50">
-                <div className="flex items-start gap-3 w-full">
-                  <div className={`mt-0.5 shrink-0 p-1.5 rounded-full ${notif.read ? 'bg-muted' : 'bg-primary/10'}`}>
-                    {getIcon(notif.type)}
+              <DropdownMenuItem 
+                key={notif._id} 
+                className="flex flex-col items-start p-4 cursor-pointer focus:bg-muted/50 group"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNotificationClick(notif);
+                }}
+              >
+                <div className="flex items-start gap-3 w-full relative">
+                  <div className={`mt-0.5 shrink-0 p-1.5 rounded-full ${notif.isRead ? 'bg-muted' : 'bg-primary/10'}`}>
+                    {getIcon(notif.type, notif.priority)}
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <p className={`text-sm font-medium leading-none ${notif.read ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  <div className="flex-1 space-y-1 pr-6">
+                    <p className={`text-sm font-medium leading-none ${notif.isRead ? 'text-muted-foreground' : 'text-foreground'}`}>
                       {notif.title}
                     </p>
                     <p className="text-xs text-muted-foreground line-clamp-2">
                       {notif.message}
                     </p>
                     <p className="text-[10px] text-muted-foreground font-medium">
-                      {notif.time}
+                      {formatTime(notif.createdAt)}
                     </p>
                   </div>
-                  {!notif.read && (
-                    <div className="w-2 h-2 bg-primary rounded-full shrink-0" />
+                  {!notif.isRead && (
+                    <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1.5" />
                   )}
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-0 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                    onClick={(e) => handleDelete(e, notif._id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </DropdownMenuItem>
             ))

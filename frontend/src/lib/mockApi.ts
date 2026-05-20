@@ -134,6 +134,60 @@ class RealApi {
     return await response.json();
   }
 
+  // Notifications
+  async getNotifications(): Promise<any[]> {
+    const response = await fetch('/api/notifications', {
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) return [];
+    return await response.json();
+  }
+
+  async getUnreadNotificationCount(): Promise<number> {
+    const response = await fetch('/api/notifications/unread-count', {
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) return 0;
+    const data = await response.json();
+    return data.count || 0;
+  }
+
+  async markNotificationRead(id: string): Promise<any> {
+    const response = await fetch(`/api/notifications/${id}/read`, {
+      method: 'PATCH',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) throw new Error('Failed to mark as read');
+    return await response.json();
+  }
+
+  async markAllNotificationsRead(): Promise<any> {
+    const response = await fetch('/api/notifications/mark-all-read', {
+      method: 'PATCH',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) throw new Error('Failed to mark all as read');
+    return await response.json();
+  }
+
+  async deleteNotification(id: string): Promise<any> {
+    const response = await fetch(`/api/notifications/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) throw new Error('Failed to delete notification');
+    return await response.json();
+  }
+
+  async clearAllNotifications(): Promise<any> {
+    const response = await fetch('/api/notifications/clear-all', {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) throw new Error('Failed to clear notifications');
+    return await response.json();
+  }
+
   // Audit Logs
   async getAuditLogs(filters?: Record<string, string>): Promise<{ logs: any[]; total: number; page: number; limit: number }> {
     const queryParams = new URLSearchParams(filters || {}).toString();
