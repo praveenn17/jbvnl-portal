@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 import BillPayment from "./pages/BillPayment";
 import NewConnection from "./pages/NewConnection";
 import ComplaintStatus from "./pages/ComplaintStatus";
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/complaint-status" element={<ComplaintStatus />} />
               <Route path="/tariff-rates" element={<TariffRates />} />
               <Route path="/learn-more" element={<LearnMore />} />
+              <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'manager', 'consumer']}><Profile /></ProtectedRoute>} />
 
               {/* Consumer-only routes */}
               <Route path="/consumer/profile" element={<ProtectedRoute allowedRoles={['consumer']}><ConsumerProfile /></ProtectedRoute>} />

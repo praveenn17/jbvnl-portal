@@ -4,11 +4,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, User as UserIcon, Settings, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from './NotificationDropdown';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
   return (
     <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-lg shadow-black/10 sticky top-0 z-50 transition-colors duration-200">
@@ -48,21 +58,30 @@ const Header: React.FC = () => {
               <>
                 <NotificationDropdown />
 
-                <div className="flex items-center space-x-2 text-sm">
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-foreground font-medium">{user.name}</span>
-                  <span className="px-2.5 py-1 bg-primary/15 text-primary text-xs rounded-full font-semibold capitalize border border-primary/25">
-                    {user.role}
-                  </span>
-                </div>
-
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  <Settings className="h-4 w-4" />
-                </Button>
-
-                <Button variant="ghost" size="sm" onClick={logout} title="Logout" className="text-muted-foreground hover:text-destructive">
-                  <LogOut className="h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center space-x-2 text-sm px-2">
+                      <UserIcon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-foreground font-medium">{user.name}</span>
+                      <span className="px-2.5 py-1 bg-primary/15 text-primary text-xs rounded-full font-semibold capitalize border border-primary/25">
+                        {user.role}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                      <Settings className="h-4 w-4 mr-2" />
+                      My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>

@@ -148,6 +148,56 @@ class RealApi {
     
     return await response.json();
   }
+
+  // Profile & Auth
+  async getMyProfile(): Promise<any> {
+    const response = await fetch('/api/auth/profile', {
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to fetch profile');
+    }
+    return await response.json();
+  }
+
+  async updateMyProfile(data: { name?: string; phone?: string; address?: string }): Promise<any> {
+    const response = await fetch('/api/auth/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update profile');
+    }
+    return await response.json();
+  }
+
+  async changePassword(data: any): Promise<any> {
+    const response = await fetch('/api/auth/change-password', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to change password');
+    }
+    return await response.json();
+  }
+
+  async logoutAllDevices(): Promise<any> {
+    const response = await fetch('/api/auth/logout-all', {
+      method: 'PATCH',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to logout from all devices');
+    }
+    return await response.json();
+  }
 }
 
 export const mockApi = new RealApi();

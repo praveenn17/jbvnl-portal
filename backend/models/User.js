@@ -38,6 +38,9 @@ const userSchema = new mongoose.Schema({
   phone: { type: String },
 
   createdAt: { type: Date, default: Date.now },
+
+  // ── Security ────────────────────────────────────────────────────────────────
+  tokenVersion: { type: Number, default: 0 },
 });
 
 // ── Password hashing pre-save hook ───────────────────────────────────────────

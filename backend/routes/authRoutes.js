@@ -9,6 +9,9 @@ const {
   resendOtp,
   getPendingUsers,
   updateUserStatus,
+  updateProfile,
+  changePassword,
+  logoutAllDevices,
 } = require('../controllers/authController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -21,6 +24,10 @@ router.post('/resend-otp', resendOtp);        // New: resend with cooldown
 
 // ── Protected routes ──────────────────────────────────────────────────────────
 router.get('/profile', protect, getUserProfile);
+router.patch('/profile', protect, updateProfile);
+router.patch('/change-password', protect, changePassword);
+router.patch('/logout-all', protect, logoutAllDevices);
+
 router.get('/users/pending', protect, admin, getPendingUsers);
 router.put('/users/:id/status', protect, admin, updateUserStatus);
 

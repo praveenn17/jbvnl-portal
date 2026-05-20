@@ -36,8 +36,8 @@ const COMMON_PASSWORDS = [
 ];
 
 // ── Helper: Generate JWT ──────────────────────────────────────────────────────
-const generateToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRY });
+const generateToken = (id, tokenVersion = 0) =>
+  jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRY });
 
 // ── Helper: Validate email format ─────────────────────────────────────────────
 const isValidEmail = (email) =>
@@ -391,7 +391,7 @@ const registerUser = async (req, res) => {
       role: savedUser.role,
       status: savedUser.status,
       createdAt: savedUser.createdAt,
-      token: generateToken(savedUser._id),
+      token: generateToken(savedUser._id, savedUser.tokenVersion),
     });
   } catch (error) {
     console.error(`[REGISTER ERROR] ${email}:`, error.message);
@@ -482,7 +482,7 @@ const authUser = async (req, res) => {
       role: user.role,
       status: user.status,
       createdAt: user.createdAt,
-      token: generateToken(user._id),
+      token: generateToken(user._id, user.tokenVersion),
     });
   } catch (error) {
     console.error(`[LOGIN ERROR] ${email}:`, error.message);
@@ -589,10 +589,164 @@ const getUserProfile = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Update user profile
+// @route   PATCH /api/auth/profile
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const updateProfile = async (req, res) => {
+  const { name, phone, address } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const changedFields = [];
+    if (name && name.trim() !== user.name) {
+      user.name = name.trim();
+      changedFields.push('name');
+    }
+    if (phone !== undefined && phone !== user.phone) {
+      user.phone = phone;
+      changedFields.push('phone');
+    }
+    if (address !== undefined && address !== user.address) {
+      user.address = address;
+      changedFields.push('address');
+    }
+
+    if (changedFields.length > 0) {
+      await user.save();
+
+      logAudit({
+        action: 'PROFILE_UPDATED',
+        message: `User updated profile fields: ${changedFields.join(', ')}`,
+        actor: user._id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetType: 'user',
+        targetId: user._id,
+        metadata: { changedFields },
+        severity: 'info',
+      });
+    }
+
+    return res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      isEmailVerified: user.isEmailVerified,
+      consumerNumber: user.consumerNumber,
+      address: user.address,
+      phone: user.phone,
+      createdAt: user.createdAt,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Change Password
+// @route   PATCH /api/auth/change-password
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const changePassword = async (req, res) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return res.status(400).json({ message: 'All password fields are required.' });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: 'New password and confirm password do not match.' });
+  }
+
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect current password.' });
+    }
+
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ message: passwordError });
+    }
+
+    user.password = newPassword; // Will be hashed by pre-save hook
+    await user.save();
+
+    logAudit({
+      action: 'PASSWORD_CHANGED',
+      message: `User changed their password`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'user',
+      targetId: user._id,
+      severity: 'info',
+    });
+
+    return res.json({ message: 'Password changed successfully.' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Logout from all devices
+// @route   PATCH /api/auth/logout-all
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const logoutAllDevices = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    logAudit({
+      action: 'LOGOUT_ALL_DEVICES',
+      message: `User logged out from all devices`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'user',
+      targetId: user._id,
+      severity: 'info',
+    });
+
+    return res.json({ message: 'Logged out from all devices successfully.' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   authUser,
   getUserProfile,
+  updateProfile,
+  changePassword,
+  logoutAllDevices,
   sendOtp,
   verifyEmail,
   resendOtp,
