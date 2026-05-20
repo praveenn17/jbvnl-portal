@@ -317,7 +317,7 @@ const verifyEmail = async (req, res) => {
 // @access  Public
 // ═══════════════════════════════════════════════════════════════════════════════
 const registerUser = async (req, res) => {
-  let { name, email, password, role, consumerNumber, address, phone } = req.body;
+  let { name, email, password, role, consumerNumber, address, phone, employeeId, department } = req.body;
 
   // ── Input validation ────────────────────────────────────────────────────────
   if (!name || !email || !password) {
@@ -345,6 +345,24 @@ const registerUser = async (req, res) => {
   const allowedRoles = ['consumer', 'manager'];
   const chosenRole = role && allowedRoles.includes(role) ? role : 'consumer';
   // Note: 'admin' role cannot be self-registered — only seeded via seedAdmin.js
+
+  if (chosenRole === 'consumer') {
+    if (!consumerNumber) {
+      return res.status(400).json({ message: 'Consumer number is required for consumer registration.' });
+    }
+    if (!address) {
+      return res.status(400).json({ message: 'Address is required for consumer registration.' });
+    }
+  }
+
+  if (chosenRole === 'manager') {
+    if (!employeeId) {
+      return res.status(400).json({ message: 'Employee ID is required for manager registration.' });
+    }
+    if (!department) {
+      return res.status(400).json({ message: 'Department is required for manager registration.' });
+    }
+  }
 
   try {
     // Check that the email was OTP-verified (pending record must exist with isEmailVerified=true)
@@ -376,13 +394,46 @@ const registerUser = async (req, res) => {
     pendingRecord.role = chosenRole;
     pendingRecord.status = chosenRole === 'manager' ? 'pending' : 'approved';
     pendingRecord.isEmailVerified = true;
-    pendingRecord.consumerNumber = consumerNumber || undefined;
-    pendingRecord.address = address || undefined;
     pendingRecord.phone = phone || undefined;
+    
+    if (chosenRole === 'consumer') {
+      pendingRecord.consumerNumber = consumerNumber;
+      pendingRecord.address = address;
+      pendingRecord.employeeId = undefined;
+      pendingRecord.department = undefined;
+    } else if (chosenRole === 'manager') {
+      pendingRecord.employeeId = employeeId;
+      pendingRecord.department = department;
+      pendingRecord.consumerNumber = undefined;
+      pendingRecord.address = undefined;
+    }
 
     const savedUser = await pendingRecord.save();
 
     console.warn(`[REGISTER] Success: ${email} as ${savedUser.role} (status: ${savedUser.status})`);
+
+    // Audit Log for successful registration
+    const metadata = {};
+    if (savedUser.role === 'consumer') {
+      metadata.consumerNumber = savedUser.consumerNumber;
+      metadata.address = savedUser.address;
+    } else if (savedUser.role === 'manager') {
+      metadata.employeeId = savedUser.employeeId;
+      metadata.department = savedUser.department;
+    }
+
+    logAudit({
+      action: 'USER_REGISTERED',
+      message: `New ${savedUser.role} registered successfully`,
+      actor: savedUser._id,
+      actorName: savedUser.name,
+      actorEmail: savedUser.email,
+      actorRole: savedUser.role,
+      targetType: 'user',
+      targetId: savedUser._id,
+      metadata,
+      severity: 'info',
+    });
 
     return res.status(201).json({
       _id: savedUser._id,

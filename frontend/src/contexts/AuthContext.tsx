@@ -13,6 +13,8 @@ interface AuthContextType {
     phone?: string;
     address?: string;
     consumerNumber?: string;
+    employeeId?: string;
+    department?: string;
   }) => Promise<boolean>;
   /** Verify OTP entered by the user against the server */
   verifyOtp: (email: string, otp: string) => Promise<boolean>;
@@ -142,6 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     phone?: string;
     address?: string;
     consumerNumber?: string;
+    employeeId?: string;
+    department?: string;
   }): Promise<boolean> => {
     setLoading(true);
     try {

@@ -9,6 +9,8 @@ export interface User {
   consumerNumber?: string;
   phone?: string;
   address?: string;
+  employeeId?: string;
+  department?: string;
 }
 
 export interface Consumer extends User {

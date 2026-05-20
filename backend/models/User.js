@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema({
   address: { type: String },
   phone: { type: String },
 
+  // For managers
+  employeeId: { type: String },
+  department: { type: String },
+
   createdAt: { type: Date, default: Date.now },
 
   // ── Security ────────────────────────────────────────────────────────────────

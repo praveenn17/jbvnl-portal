@@ -14,4 +14,6 @@ export interface RegisterData {
   phone: string;
   address: string;
   consumerNumber: string;
+  employeeId?: string;
+  department?: string;
 }

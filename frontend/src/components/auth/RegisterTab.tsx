@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Hash, CheckCircle2, XCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Hash, CheckCircle2, XCircle, Briefcase, Building2 } from 'lucide-react';
 import { RegisterData } from './types';
 import OtpVerification from './OtpVerification';
 
@@ -58,14 +58,26 @@ const RegisterTab: React.FC = () => {
     phone: '',
     address: '',
     consumerNumber: '',
+    employeeId: '',
+    department: '',
   });
 
   // ── Client-side validation ─────────────────────────────────────────────────
   const validateForm = (): string | null => {
-    const { name, email, password, confirmPassword, role } = registerData;
+    const { name, email, password, confirmPassword, role, consumerNumber, address, employeeId, department, phone } = registerData;
 
-    if (!name.trim() || !email.trim() || !password || !confirmPassword || !role) {
+    if (!name.trim() || !email.trim() || !password || !confirmPassword || !role || !phone.trim()) {
       return 'Please fill in all required fields.';
+    }
+
+    if (role === 'consumer') {
+      if (!consumerNumber?.trim()) return 'Consumer number is required for consumers.';
+      if (!address?.trim()) return 'Address is required for consumers.';
+    }
+
+    if (role === 'manager') {
+      if (!employeeId?.trim()) return 'Employee ID is required for managers.';
+      if (!department?.trim()) return 'Department is required for managers.';
     }
     if (name.trim().length < 2) {
       return 'Name must be at least 2 characters.';
@@ -102,8 +114,10 @@ const RegisterTab: React.FC = () => {
         password: registerData.password,
         role: registerData.role as 'consumer' | 'manager',
         phone: registerData.phone,
-        address: registerData.address,
-        consumerNumber: registerData.consumerNumber,
+        address: registerData.role === 'consumer' ? registerData.address : undefined,
+        consumerNumber: registerData.role === 'consumer' ? registerData.consumerNumber : undefined,
+        employeeId: registerData.role === 'manager' ? registerData.employeeId : undefined,
+        department: registerData.role === 'manager' ? registerData.department : undefined,
       });
 
       if (success) {
@@ -133,6 +147,8 @@ const RegisterTab: React.FC = () => {
       phone: '',
       address: '',
       consumerNumber: '',
+      employeeId: '',
+      department: '',
     });
   };
 
@@ -291,54 +307,100 @@ const RegisterTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Phone + Consumer Number */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="register-phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="register-phone"
-                  type="tel"
-                  placeholder="Enter your phone number"
-                  className="pl-10"
-                  value={registerData.phone}
-                  onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="register-consumer-number">Consumer Number</Label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="register-consumer-number"
-                  type="text"
-                  placeholder="Enter consumer number"
-                  className="pl-10"
-                  value={registerData.consumerNumber}
-                  onChange={(e) => setRegisterData({ ...registerData, consumerNumber: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Address */}
+          {/* Phone (Always visible) */}
           <div className="space-y-2">
-            <Label htmlFor="register-address">Address</Label>
+            <Label htmlFor="register-phone">Phone Number</Label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                id="register-address"
-                type="text"
-                placeholder="Enter your address"
+                id="register-phone"
+                type="tel"
+                placeholder="Enter your phone number"
                 className="pl-10"
-                value={registerData.address}
-                onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
+                value={registerData.phone}
+                onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                required
               />
             </div>
           </div>
+
+          {/* Conditional Fields: Consumer */}
+          {registerData.role === 'consumer' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="register-consumer-number">Consumer Number</Label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="register-consumer-number"
+                    type="text"
+                    placeholder="Enter consumer number"
+                    className="pl-10"
+                    value={registerData.consumerNumber}
+                    onChange={(e) => setRegisterData({ ...registerData, consumerNumber: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="register-address">Address</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="register-address"
+                    type="text"
+                    placeholder="Enter your address"
+                    className="pl-10"
+                    value={registerData.address}
+                    onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Conditional Fields: Manager */}
+          {registerData.role === 'manager' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="register-employee-id">Employee ID</Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="register-employee-id"
+                    type="text"
+                    placeholder="Enter employee ID"
+                    className="pl-10"
+                    value={registerData.employeeId}
+                    onChange={(e) => setRegisterData({ ...registerData, employeeId: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="register-department">Department / Team</Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                  <Select
+                    value={registerData.department}
+                    onValueChange={(value) => setRegisterData({ ...registerData, department: value })}
+                  >
+                    <SelectTrigger className="pl-10">
+                      <SelectValue placeholder="Select department/team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Technical Team">Technical Team</SelectItem>
+                      <SelectItem value="Billing Team">Billing Team</SelectItem>
+                      <SelectItem value="Meter Department">Meter Department</SelectItem>
+                      <SelectItem value="Field Inspection Team">Field Inspection Team</SelectItem>
+                      <SelectItem value="Emergency Response Team">Emergency Response Team</SelectItem>
+                      <SelectItem value="Connection Team">Connection Team</SelectItem>
+                      <SelectItem value="Customer Support">Customer Support</SelectItem>
+                      <SelectItem value="Admin Operations">Admin Operations</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </>
+          )}
 
           <Button
             type="submit"
