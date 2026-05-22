@@ -76,18 +76,21 @@ const ConsumerDashboard: React.FC = () => {
 
   const [bills, setBills] = useState<Bill[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
     const fetchData = async () => {
       if (user?.consumerNumber || (user as any)?.consumerNumber) {
         const cNum = user.consumerNumber || (user as any).consumerNumber;
-        const [billsData, complaintsData] = await Promise.all([
+        const [billsData, complaintsData, statsData] = await Promise.all([
           mockApi.getBills(cNum),
-          mockApi.getComplaints(cNum)
+          mockApi.getComplaints(cNum),
+          mockApi.getDashboardStats().catch(() => null)
         ]);
         setBills(billsData);
         setComplaints(complaintsData);
+        setStats(statsData);
       }
       setLoading(false);
     };
@@ -189,12 +192,22 @@ const ConsumerDashboard: React.FC = () => {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">
-              {pendingBill ? `₹${pendingBill.amount.toLocaleString()}` : '—'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {pendingBill ? `Due: ${new Date(pendingBill.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'No pending bills'}
-            </p>
+            {loading ? (
+               <div className="animate-pulse h-8 bg-muted rounded w-1/2"></div>
+            ) : (() => {
+              const amt = stats?.currentBillAmount || (pendingBill ? pendingBill.amount : (bills[0]?.amount || 0));
+              const billStatus = stats?.latestBillStatus || (pendingBill ? 'pending' : (bills[0]?.status || null));
+              return (
+                <>
+                  <div className="text-2xl font-bold text-primary">
+                    {amt ? `₹${amt.toLocaleString()}` : 'No Bills'}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {billStatus === 'pending' || billStatus === 'overdue' ? 'Payment due' : (billStatus === 'paid' ? 'Latest paid bill' : 'No bills yet')}
+                  </p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -204,10 +217,19 @@ const ConsumerDashboard: React.FC = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingBill?.units ?? '—'}</div>
-            <p className="text-xs text-muted-foreground">
-              {pendingBill ? pendingBill.billingPeriod : 'Latest month'}
-            </p>
+             {loading ? (
+               <div className="animate-pulse h-8 bg-muted rounded w-1/2"></div>
+            ) : (() => {
+              const units = stats?.unitsConsumed || (pendingBill ? pendingBill.units : (bills[0]?.units || 0));
+              return (
+                <>
+                  <div className="text-2xl font-bold">{units ? `${units} kWh` : 'No Data'}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Latest reading
+                  </p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -217,10 +239,19 @@ const ConsumerDashboard: React.FC = () => {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-secondary">
-              {complaints.filter(c => c.status !== 'resolved').length}
-            </div>
-            <p className="text-xs text-muted-foreground">In Progress</p>
+            {loading ? (
+               <div className="animate-pulse h-8 bg-muted rounded w-1/4"></div>
+            ) : (() => {
+              const active = stats?.activeComplaints ?? complaints.filter(c => c.status !== 'resolved' && c.status !== 'closed').length;
+              return (
+                <>
+                  <div className="text-2xl font-bold text-secondary">
+                    {active}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{active > 0 ? 'In Progress' : 'No active complaints'}</p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -230,12 +261,21 @@ const ConsumerDashboard: React.FC = () => {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${hasPendingBills ? 'text-yellow-600' : 'text-green-600'}`}>
-              {hasPendingBills ? 'Due' : 'Up to Date'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {hasPendingBills ? 'Payment pending' : 'All bills paid'}
-            </p>
+            {loading ? (
+               <div className="animate-pulse h-8 bg-muted rounded w-2/3"></div>
+            ) : (() => {
+              const pStatus = stats?.paymentStatus || (hasPendingBills ? 'Pending' : (bills.length > 0 ? 'Up to Date' : 'No Data'));
+              return (
+                <>
+                  <div className={`text-2xl font-bold ${pStatus === 'Pending' ? 'text-yellow-600' : (pStatus === 'Up to Date' ? 'text-green-600' : 'text-muted-foreground')}`}>
+                    {pStatus}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {pStatus === 'Pending' ? 'Payment due' : (pStatus === 'Up to Date' ? 'All bills paid' : 'No history')}
+                  </p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

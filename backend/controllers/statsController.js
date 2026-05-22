@@ -88,7 +88,25 @@ const getDashboardStats = async (req, res) => {
       const openComplaints = await Complaint.countDocuments({ consumerNumber: req.user.consumerNumber, status: { $nin: ['resolved', 'closed'] } });
       const resolvedComplaints = await Complaint.countDocuments({ consumerNumber: req.user.consumerNumber, status: 'resolved' });
       
-      stats = { myComplaints, openComplaints, resolvedComplaints };
+      const bills = await Bill.find({ consumerNumber: req.user.consumerNumber }).sort({ dueDate: -1 });
+      
+      const latestBill = bills.length > 0 ? bills[0] : null;
+      const hasPendingBills = bills.some(b => b.status === 'pending' || b.status === 'overdue');
+
+      const currentBillAmount = latestBill ? latestBill.amount : 0;
+      const unitsConsumed = latestBill ? latestBill.units : 0;
+      const paymentStatus = hasPendingBills ? 'Pending' : (bills.length > 0 ? 'Up to Date' : 'No Data');
+
+      stats = { 
+        myComplaints, 
+        openComplaints, 
+        resolvedComplaints,
+        activeComplaints: openComplaints,
+        currentBillAmount,
+        unitsConsumed,
+        paymentStatus,
+        latestBillStatus: latestBill ? latestBill.status : null
+      };
     }
 
     res.json(stats);

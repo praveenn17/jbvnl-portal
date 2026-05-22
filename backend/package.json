@@ -12,7 +12,8 @@
     "seed:consumers": "node seedDemoConsumers.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed:notifications": "node seedNotifications.js",
-    "seed:settings": "node seedAdminSettings.js"
+    "seed:settings": "node seedAdminSettings.js",
+    "seed:bills": "node seedConsumerBills.js"
   },
   "keywords": [],
   "author": "",

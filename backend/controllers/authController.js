@@ -571,6 +571,10 @@ const authUser = async (req, res) => {
       email: user.email,
       role: user.role,
       status: user.status,
+      consumerNumber: user.consumerNumber,
+      phone: user.phone,
+      address: user.address,
+      preferences: user.preferences,
       createdAt: user.createdAt,
       token: generateToken(user._id, user.tokenVersion),
     });

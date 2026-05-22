@@ -3,37 +3,69 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Settings, Bell, Shield, Mail, Smartphone, Download, UserX, Trash2 } from 'lucide-react';
+import { ArrowLeft, Settings, Bell, Shield, Mail, Smartphone, Download, UserX, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockApi } from '@/lib/mockApi';
+import { useTheme } from 'next-themes';
 
 const ConsumerSettings: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, login } = useAuth(); // Need login to refresh token if we had a function for it, but updating user requires re-fetch
+  const { user, refreshUser } = useAuth() as any;
+  const { theme, setTheme } = useTheme();
   
   const [settings, setSettings] = useState({
     emailBillEnabled: true,
     smsAlertsEnabled: false,
     outageNotificationsEnabled: true,
     marketingOptIn: false,
-    darkMode: false,
+    darkMode: theme === 'dark',
   });
+
+  // ── Modal states ─────────────────────────────────────────────────────────
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [phoneForm, setPhoneForm] = useState({ phone: '' });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user && (user as any).preferences) {
-      setSettings((user as any).preferences);
+      const prefs = (user as any).preferences;
+      setSettings({
+        emailBillEnabled: prefs.emailBillEnabled ?? true,
+        smsAlertsEnabled: prefs.smsAlertsEnabled ?? false,
+        outageNotificationsEnabled: prefs.outageNotificationsEnabled ?? true,
+        marketingOptIn: prefs.marketingOptIn ?? false,
+        darkMode: theme === 'dark',
+      });
     }
-  }, [user]);
+    if (user?.phone) {
+      setPhoneForm({ phone: user.phone });
+    }
+  }, [user, theme]);
 
   const handleSettingChange = async (setting: string, value: boolean) => {
+    // Handle dark mode separately via next-themes
+    if (setting === 'darkMode') {
+      setTheme(value ? 'dark' : 'light');
+      setSettings(prev => ({ ...prev, darkMode: value }));
+      toast({ title: "Theme Updated", description: value ? "Dark mode enabled" : "Light mode enabled" });
+      // Also persist to backend
+      try {
+        await mockApi.updateConsumerPreferences({ darkMode: value });
+      } catch { /* non-critical */ }
+      return;
+    }
+
     const newSettings = { ...settings, [setting]: value };
     setSettings(newSettings);
     
     try {
-      await mockApi.updateConsumerPreferences(newSettings);
+      await mockApi.updateConsumerPreferences({ [setting]: value });
       toast({
         title: "Setting Updated",
         description: "Your preference has been saved securely.",
@@ -47,22 +79,107 @@ const ConsumerSettings: React.FC = () => {
     }
   };
 
+  // ── Change Password ──────────────────────────────────────────────────────
+  const handleChangePassword = async () => {
+    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({ title: "Error", description: "All password fields are required.", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "New password and confirm password do not match.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await mockApi.changePassword({ currentPassword, newPassword, confirmPassword });
+      toast({ title: "Password Changed", description: "Your password has been updated successfully." });
+      setShowPasswordModal(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      toast({ title: "Failed", description: err.message || "Could not change password.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Update Phone ─────────────────────────────────────────────────────────
+  const handleUpdatePhone = async () => {
+    if (!phoneForm.phone || phoneForm.phone.trim().length < 10) {
+      toast({ title: "Error", description: "Please enter a valid phone number.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await mockApi.updateMyProfile({ phone: phoneForm.phone.trim() });
+      if (refreshUser) await refreshUser();
+      toast({ title: "Phone Updated", description: "Your mobile number has been updated." });
+      setShowPhoneModal(false);
+    } catch (err: any) {
+      toast({ title: "Failed", description: err.message || "Could not update phone.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Export Account Data ──────────────────────────────────────────────────
   const handleExportData = async () => {
     try {
       const profile = await mockApi.getMyProfile();
       const bills = await mockApi.getBills(profile.consumerNumber);
       const complaints = await mockApi.getComplaints(profile.consumerNumber);
       
-      const data = { profile, bills, complaints };
+      // Remove sensitive fields
+      const { password, emailOtpHash, emailOtpExpires, tokenVersion, ...safeProfile } = profile;
+      const data = { profile: safeProfile, bills, complaints, exportedAt: new Date().toISOString() };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'jbvnl_account_data.json';
+      a.download = `jbvnl_account_data_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       toast({ title: "Data Exported", description: "Your account data has been downloaded." });
     } catch (err) {
       toast({ title: "Export Failed", description: "Failed to export data", variant: "destructive" });
+    }
+  };
+
+  // ── Download Bill History ────────────────────────────────────────────────
+  const handleDownloadBillHistory = async () => {
+    try {
+      const cNum = user?.consumerNumber;
+      if (!cNum) {
+        toast({ title: "Error", description: "Consumer number not found.", variant: "destructive" });
+        return;
+      }
+      const bills = await mockApi.getBills(cNum);
+      if (!bills || bills.length === 0) {
+        toast({ title: "No Bills", description: "No bill history found to download.", variant: "destructive" });
+        return;
+      }
+
+      // CSV format
+      const headers = 'Bill Number,Billing Period,Due Date,Amount (₹),Units (kWh),Status\n';
+      const rows = bills.map((b: any) =>
+        `${b.billNumber},${b.billingPeriod},${new Date(b.dueDate).toLocaleDateString('en-IN')},${b.amount},${b.units},${b.status}`
+      ).join('\n');
+      const csv = headers + rows;
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `jbvnl_bill_history_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Downloaded", description: "Bill history CSV has been downloaded." });
+    } catch (err) {
+      toast({ title: "Download Failed", description: "Failed to download bill history", variant: "destructive" });
     }
   };
 
@@ -178,7 +295,7 @@ const ConsumerSettings: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button variant="outline" className="justify-start" onClick={() => navigate('/consumer/profile')}>
+                <Button variant="outline" className="justify-start" onClick={() => setShowPasswordModal(true)}>
                   <Shield className="h-4 w-4 mr-2" />
                   Change Password
                 </Button>
@@ -186,7 +303,7 @@ const ConsumerSettings: React.FC = () => {
                   <Mail className="h-4 w-4 mr-2" />
                   Update Email
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={() => navigate('/consumer/profile')}>
+                <Button variant="outline" className="justify-start" onClick={() => { setPhoneForm({ phone: user?.phone || '' }); setShowPhoneModal(true); }}>
                   <Smartphone className="h-4 w-4 mr-2" />
                   Update Mobile Number
                 </Button>
@@ -210,7 +327,7 @@ const ConsumerSettings: React.FC = () => {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.darkMode}
+                  checked={theme === 'dark'}
                   onCheckedChange={(value) => handleSettingChange('darkMode', value)}
                 />
               </div>
@@ -230,7 +347,7 @@ const ConsumerSettings: React.FC = () => {
                   <Download className="h-4 w-4 mr-2" />
                   Export Account Data
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={() => navigate('/consumer/six-months')}>
+                <Button variant="outline" className="justify-start" onClick={handleDownloadBillHistory}>
                   <Download className="h-4 w-4 mr-2" />
                   Download Bill History
                 </Button>
@@ -247,6 +364,96 @@ const ConsumerSettings: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* ── Change Password Modal ─────────────────────────────────────────── */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Change Password</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowPasswordModal(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardDescription>Enter your current and new password</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Current Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Enter current password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>New Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Enter new password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Confirm New Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button onClick={handleChangePassword} disabled={saving} className="flex-1">
+                  {saving ? 'Saving...' : 'Update Password'}
+                </Button>
+                <Button variant="outline" onClick={() => setShowPasswordModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Update Phone Modal ────────────────────────────────────────────── */}
+      {showPhoneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Update Mobile Number</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowPhoneModal(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardDescription>Enter your new mobile number</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Mobile Number</Label>
+                <Input
+                  type="tel"
+                  placeholder="Enter new mobile number"
+                  value={phoneForm.phone}
+                  onChange={(e) => setPhoneForm({ phone: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button onClick={handleUpdatePhone} disabled={saving} className="flex-1">
+                  {saving ? 'Saving...' : 'Update Number'}
+                </Button>
+                <Button variant="outline" onClick={() => setShowPhoneModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

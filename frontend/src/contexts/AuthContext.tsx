@@ -119,11 +119,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: data.name,
         role: data.role,
         status: data.status,
+        consumerNumber: data.consumerNumber,
+        phone: data.phone,
+        address: data.address,
         createdAt: data.createdAt || new Date().toISOString(),
       };
+      // Store preferences separately so they're accessible via (user as any).preferences
+      const userWithPrefs = { ...loggedUser, preferences: data.preferences } as any;
 
-      setUser(loggedUser);
-      localStorage.setItem('jbvnl_user', JSON.stringify(loggedUser));
+      setUser(userWithPrefs);
+      localStorage.setItem('jbvnl_user', JSON.stringify(userWithPrefs));
       localStorage.setItem('jbvnl_token', data.token);
 
       if (loggedUser.role === 'admin' || loggedUser.role === 'manager') {
