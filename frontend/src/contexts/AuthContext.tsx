@@ -5,6 +5,7 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role: string) => Promise<boolean>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   register: (userData: {
     name: string;
     email: string;
@@ -22,6 +23,8 @@ interface AuthContextType {
   resendOtp: (email: string) => Promise<boolean>;
   /** Clear all OTP-pending state (called when user clicks "Back") */
   clearOtpPending: () => void;
+  /** Manually refresh the list of pending users (for Admin Dashboard) */
+  refreshPendingUsers: () => void;
   isAuthenticated: boolean;
   loading: boolean;
   pendingUsers: User[];
@@ -135,6 +138,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshUser = async () => {
+    const token = localStorage.getItem('jbvnl_token');
+    if (!token) return;
+    try {
+      const response = await fetch('/api/auth/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const updatedUser = { ...user, ...data } as User;
+        setUser(updatedUser);
+        localStorage.setItem('jbvnl_user', JSON.stringify(updatedUser));
+      }
+    } catch (e) {
+      console.error('Failed to refresh user:', e);
+    }
+  };
+
   // ── Register (Step 1: send OTP) ────────────────────────────────────────────
   const register = async (userData: {
     name: string;
@@ -160,6 +181,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to send verification code');
+      }
+
+      // If backend returned devOtp (dev mode), log it prominently so user can see it
+      if (data.devOtp) {
+        console.warn('');
+        console.warn('%c╔══════════════════════════════════════╗', 'color: #f59e0b; font-weight: bold');
+        console.warn('%c║  [DEV] YOUR OTP CODE IS BELOW:       ║', 'color: #f59e0b; font-weight: bold');
+        console.warn(`%c║  OTP: ${data.devOtp}  (or use 111000)      ║`, 'color: #10b981; font-size: 16px; font-weight: bold');
+        console.warn('%c╚══════════════════════════════════════╝', 'color: #f59e0b; font-weight: bold');
+        console.warn('');
+        // Also alert in console.table for easy copying
+        console.table({ 'Your OTP': data.devOtp, 'Bypass OTP': '111000' });
       }
 
       // Store registration data temporarily so verifyOtp can submit it
@@ -218,12 +251,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clean up temp state
       localStorage.removeItem('jbvnl_temp_reg_data');
       setOtpPendingEmail(null);
+
+      // If current logged-in user is admin, refresh pending users so the new
+      // manager request appears in the admin approval panel immediately.
+      const currentToken = localStorage.getItem('jbvnl_token');
+      const savedUser = localStorage.getItem('jbvnl_user');
+      const currentRole = savedUser ? JSON.parse(savedUser).role : null;
+      if (currentToken && currentRole === 'admin') {
+        fetchPending(currentToken, 'admin');
+      }
+
       return true;
     } catch (error) {
       throw error;
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Refresh pending users (callable from Admin Dashboard) ──────────────────
+  const refreshPendingUsers = () => {
+    const token = localStorage.getItem('jbvnl_token');
+    fetchPending(token || undefined);
   };
 
   // ── Resend OTP ─────────────────────────────────────────────────────────────
@@ -292,10 +341,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     login,
     logout,
+    refreshUser,
     register,
     verifyOtp,
     resendOtp,
     clearOtpPending,
+    refreshPendingUsers,
     isAuthenticated: !!user,
     loading,
     pendingUsers,

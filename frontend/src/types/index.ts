@@ -22,6 +22,7 @@ export interface Consumer extends User {
 }
 
 export interface Bill {
+  _id: string;
   id: string;
   consumerNumber: string;
   billNumber: string;
@@ -49,6 +50,8 @@ export interface Complaint {
   sla?: { slaHours: number; dueAt: string; resolvedAt?: string; status: 'on_track' | 'at_risk' | 'breached' | 'completed' };
   resolvedAt?: string;
   closedAt?: string;
+  preferredTime?: string;
+  contactNumber?: string;
   createdAt: string;
   updatedAt: string;
 }

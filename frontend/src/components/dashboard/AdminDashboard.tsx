@@ -22,11 +22,12 @@ import AuditLogs from './AuditLogs';
 import { mockApi } from '../../lib/mockApi';
 
 const AdminDashboard: React.FC = () => {
-  const { pendingUsers, updateUserStatus, user } = useAuth();
+  const { pendingUsers, updateUserStatus, user, refreshPendingUsers } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ 
     revenue: 0, 
     totalUsers: 0, 
@@ -40,12 +41,14 @@ const AdminDashboard: React.FC = () => {
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const [complaintsData, statsData] = await Promise.all([
+        const [complaintsData, statsData, messagesData] = await Promise.all([
           mockApi.getComplaints(),
-          mockApi.getDashboardStats()
+          mockApi.getDashboardStats(),
+          mockApi.getAdminMessages().catch(() => []) // Handle errors gracefully
         ]);
         setComplaints(complaintsData);
         setStats(statsData);
+        setMessages(messagesData);
       } catch (error) {
         console.error('Failed to fetch admin data:', error);
       } finally {
@@ -53,7 +56,31 @@ const AdminDashboard: React.FC = () => {
       }
     };
     fetchData();
+
+    // Auto-refresh pending users every 30 seconds so new manager requests appear
+    const intervalId = setInterval(() => refreshPendingUsers(), 30000);
+    return () => clearInterval(intervalId);
   }, []);
+
+  const handleMarkMessageRead = async (id: string) => {
+    try {
+      await mockApi.markMessageRead(id);
+      setMessages(messages.map(m => m._id === id ? { ...m, status: 'read' } : m));
+      toast({ title: 'Success', description: 'Message marked as read' });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to mark message as read', variant: 'destructive' });
+    }
+  };
+
+  const handleCloseMessage = async (id: string) => {
+    try {
+      await mockApi.closeMessage(id);
+      setMessages(messages.map(m => m._id === id ? { ...m, status: 'closed' } : m));
+      toast({ title: 'Success', description: 'Message closed' });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to close message', variant: 'destructive' });
+    }
+  };
 
   const displayPendingUsers = pendingUsers.slice(0, 15);
 
@@ -153,24 +180,86 @@ const AdminDashboard: React.FC = () => {
 
       {/* Admin Content Tabs */}
       <Tabs defaultValue="approvals" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="approvals">User Approvals</TabsTrigger>
           <TabsTrigger value="complaints">Complaints</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
           <TabsTrigger value="auditLogs">Audit Logs</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
+        {/* ── Messages Tab (NEW) ─────────────────────────────────────────────── */}
+        <TabsContent value="messages" className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Manager Messages</h3>
+            <p className="text-sm text-muted-foreground">Internal communications from system managers</p>
+          </div>
+          {messages.length === 0 ? (
+            <Card className="border-dashed border-2 border-border">
+              <CardContent className="pt-8 pb-8 text-center">
+                <p className="text-foreground font-medium">No messages</p>
+                <p className="text-muted-foreground text-sm mt-1">Inbox is empty</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {messages.map((msg: any) => (
+                <Card key={msg._id} className={`hover-scale ${msg.status === 'unread' ? 'border-l-4 border-l-blue-500' : ''}`}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {msg.subject}
+                          {msg.status === 'unread' && <Badge className="bg-blue-500">New</Badge>}
+                        </CardTitle>
+                        <CardDescription>
+                          From: {msg.senderName} ({msg.senderEmail}) - {new Date(msg.createdAt).toLocaleString()}
+                        </CardDescription>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="outline" className="capitalize">{msg.priority} Priority</Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm mb-4 bg-muted/50 p-4 rounded-md whitespace-pre-wrap">{msg.message}</p>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm">Category: <Badge variant="secondary" className="capitalize">{msg.category}</Badge></span>
+                        <span className="text-sm">Status: <Badge variant="outline" className="capitalize">{msg.status}</Badge></span>
+                      </div>
+                      <div className="flex gap-2">
+                        {msg.status === 'unread' && (
+                          <Button size="sm" variant="outline" onClick={() => handleMarkMessageRead(msg._id)}>Mark as Read</Button>
+                        )}
+                        {msg.status !== 'closed' && (
+                          <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleCloseMessage(msg._id)}>Close Message</Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         {/* ── User Approvals Tab ─────────────────────────────────────────────── */}
         <TabsContent value="approvals" className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">
-              Pending User Approvals
-              {displayPendingUsers.length > 0 && (
-                <Badge className="ml-2">{ displayPendingUsers.length}</Badge>
-              )}
-            </h3>
-            <p className="text-sm text-muted-foreground">Review and approve new user registrations</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">
+                Pending User Approvals
+                {displayPendingUsers.length > 0 && (
+                  <Badge className="ml-2">{ displayPendingUsers.length}</Badge>
+                )}
+              </h3>
+              <p className="text-sm text-muted-foreground">Review and approve new user registrations</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={refreshPendingUsers}>
+              ↻ Refresh List
+            </Button>
           </div>
 
           {displayPendingUsers.length === 0 ? (

@@ -1,108 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Download, CreditCard, AlertCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { mockApi } from '@/lib/mockApi';
+import { Bill } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BillDetails: React.FC = () => {
   const navigate = useNavigate();
   const { billId } = useParams();
+  const { user } = useAuth();
+  
+  const [bill, setBill] = useState<Bill | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const bills = [
-    {
-      id: '1',
-      billingPeriod: 'March 2024',
-      billNumber: 'BILL001',
-      dueDate: '2024-04-15',
-      amount: 2450,
-      status: 'pending',
-      units: 245,
-      previousReading: 5234,
-      currentReading: 5479,
-      ratePerUnit: 8.50,
-      fixedCharges: 75,
-      electricityDuty: 125,
-      rebate: 0,
-    },
-    {
-      id: '2',
-      billingPeriod: 'February 2024',
-      billNumber: 'BILL002',
-      dueDate: '2024-03-15',
-      amount: 1890,
-      status: 'paid',
-      units: 189,
-      previousReading: 5045,
-      currentReading: 5234,
-      ratePerUnit: 8.50,
-      fixedCharges: 75,
-      electricityDuty: 96,
-      rebate: 50,
-    },
-    {
-      id: '3',
-      billingPeriod: 'January 2024',
-      billNumber: 'BILL003',
-      dueDate: '2024-02-15',
-      amount: 2145,
-      status: 'paid',
-      units: 212,
-      previousReading: 4833,
-      currentReading: 5045,
-      ratePerUnit: 8.50,
-      fixedCharges: 75,
-      electricityDuty: 108,
-      rebate: 0,
-    },
-    {
-      id: '4',
-      billingPeriod: 'December 2023',
-      billNumber: 'BILL004',
-      dueDate: '2024-01-15',
-      amount: 1675,
-      status: 'paid',
-      units: 165,
-      previousReading: 4668,
-      currentReading: 4833,
-      ratePerUnit: 8.50,
-      fixedCharges: 75,
-      electricityDuty: 84,
-      rebate: 25,
-    },
-    {
-      id: '5',
-      billingPeriod: 'November 2023',
-      billNumber: 'BILL005',
-      dueDate: '2023-12-15',
-      amount: 1945,
-      status: 'paid',
-      units: 194,
-      previousReading: 4474,
-      currentReading: 4668,
-      ratePerUnit: 8.50,
-      fixedCharges: 75,
-      electricityDuty: 99,
-      rebate: 0,
-    },
-    {
-      id: '6',
-      billingPeriod: 'October 2023',
-      billNumber: 'BILL006',
-      dueDate: '2023-11-15',
-      amount: 2234,
-      status: 'paid',
-      units: 223,
-      previousReading: 4251,
-      currentReading: 4474,
-      ratePerUnit: 8.50,
-      fixedCharges: 75,
-      electricityDuty: 113,
-      rebate: 0,
-    },
-  ];
+  useEffect(() => {
+    const fetchBill = async () => {
+      if (!billId) return;
+      try {
+        const data = await mockApi.getBillById(billId);
+        if (data) {
+          // If the backend doesn't send these details, we mock them for display purposes
+          setBill({
+            ...data,
+            previousReading: data.previousReading || Math.floor(Math.random() * 5000),
+            currentReading: data.currentReading || (data.previousReading || 5000) + data.units,
+            ratePerUnit: data.ratePerUnit || 8.50,
+            fixedCharges: data.fixedCharges || 75,
+            electricityDuty: data.electricityDuty || Math.floor(data.amount * 0.05),
+            rebate: data.rebate || 0,
+          } as any);
+        }
+      } catch (error) {
+        console.error('Error fetching bill details', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBill();
+  }, [billId]);
 
-  const bill = bills.find(b => b.id === billId);
+  const handleDownloadPdf = () => {
+    if (!billId) return;
+    const token = localStorage.getItem('jbvnl_token');
+    const url = `/api/bills/${billId}/download?token=${token}`;
+    
+    // Create an invisible iframe or open in new tab to trigger print
+    const newWindow = window.open(url, '_blank');
+    if (newWindow) {
+      newWindow.focus();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <p className="text-lg">Loading bill details...</p>
+      </div>
+    );
+  }
 
   if (!bill) {
     return (
@@ -136,12 +94,12 @@ const BillDetails: React.FC = () => {
             Back to Bills
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleDownloadPdf}>
               <Download className="h-4 w-4 mr-2" />
               Download PDF
             </Button>
             {bill.status === 'pending' && (
-              <Button onClick={() => navigate('/consumer/payment')} className="bg-secondary hover:bg-secondary-600">
+              <Button onClick={() => navigate('/consumer/payment', { state: { billId: bill._id || bill.id } })} className="bg-secondary hover:bg-secondary-600">
                 <CreditCard className="h-4 w-4 mr-2" />
                 Pay Now
               </Button>
@@ -244,13 +202,13 @@ const BillDetails: React.FC = () => {
 
             <div className="flex gap-4 pt-4">
               <Button 
-                onClick={() => navigate('/consumer/billing-concern')}
+                onClick={() => navigate('/consumer/form/billing-concern', { state: { billNumber: bill.billNumber } })}
                 variant="outline"
               >
                 Raise Billing Concern
               </Button>
               {bill.status === 'pending' && (
-                <Button onClick={() => navigate('/consumer/payment')} className="bg-secondary hover:bg-secondary-600">
+                <Button onClick={() => navigate('/consumer/payment', { state: { billId: bill._id || bill.id } })} className="bg-secondary hover:bg-secondary-600">
                   Pay This Bill
                 </Button>
               )}

@@ -160,6 +160,8 @@ const ManagerComplaints: React.FC = () => {
                 <div><p className="text-xs text-muted-foreground">Assigned Team</p><p className="text-sm font-medium text-foreground">{detail.assignedTeam || 'None'}</p></div>
                 <div><p className="text-xs text-muted-foreground">Reported</p><p className="text-sm font-medium text-foreground">{new Date(detail.createdAt).toLocaleString('en-IN')}</p></div>
                 {detail.sla && <div><p className="text-xs text-muted-foreground">SLA Target</p><p className="text-sm font-medium text-foreground">{new Date(detail.sla.dueAt).toLocaleString('en-IN')}</p></div>}
+                {detail.contactNumber && <div><p className="text-xs text-muted-foreground">Contact Phone</p><p className="text-sm font-medium text-foreground">{detail.contactNumber}</p></div>}
+                {detail.preferredTime && <div><p className="text-xs text-muted-foreground">Preferred Time</p><p className="text-sm font-medium text-foreground">{detail.preferredTime}</p></div>}
               </div>
               
               <div><p className="text-xs text-muted-foreground mb-1">Full Description</p><p className="text-sm text-foreground bg-muted/40 p-3 rounded-lg border border-border/50">{detail.description}</p></div>

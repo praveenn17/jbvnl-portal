@@ -115,7 +115,7 @@ const getComplaintById = async (req, res) => {
 // @route   POST /api/complaints
 // @access  Private
 const fileComplaint = async (req, res) => {
-  const { title, description, category, priority, consumerNumber } = req.body;
+  const { title, description, category, priority, consumerNumber, preferredTime, contactNumber } = req.body;
 
   try {
     const cNum = consumerNumber || req.user.consumerNumber;
@@ -132,6 +132,8 @@ const fileComplaint = async (req, res) => {
       category,
       priority: complaintPriority,
       status: 'open',
+      preferredTime,
+      contactNumber,
       sla: {
         slaHours,
         dueAt,

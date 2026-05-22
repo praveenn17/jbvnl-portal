@@ -41,6 +41,19 @@ const userSchema = new mongoose.Schema({
   employeeId: { type: String },
   department: { type: String },
 
+  // ── Consumer Preferences & Privacy ──────────────────────────────────────────
+  preferences: {
+    smsAlertsEnabled: { type: Boolean, default: false },
+    emailBillEnabled: { type: Boolean, default: true },
+    outageNotificationsEnabled: { type: Boolean, default: true },
+    marketingOptIn: { type: Boolean, default: false },
+    darkMode: { type: Boolean, default: false },
+  },
+
+  // Account management requests
+  deactivationRequested: { type: Boolean, default: false },
+  deleteRequested: { type: Boolean, default: false },
+
   createdAt: { type: Date, default: Date.now },
 
   // ── Security ────────────────────────────────────────────────────────────────

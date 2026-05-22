@@ -1,9 +1,0 @@
-LoginTab.tsx:53 Login error: Error: Your manager account is pending admin approval. Please wait for approval.
-
-
-but we don't get any request in admin panel section to approval for manager accound check for this problem 
-
-and along with that in produciton website we don't get our OTP in browser console and we want their because we don't setup any real OTP system so we need OTP in our browser console
-
-
-and add a default OTP for all user admin, manager, and normal consumer which will be 111000 for all and it should bypass all the registartion system

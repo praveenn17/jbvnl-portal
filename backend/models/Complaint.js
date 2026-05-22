@@ -46,6 +46,8 @@ const complaintSchema = new mongoose.Schema({
   },
   resolvedAt: { type: Date },
   closedAt: { type: Date },
+  preferredTime: { type: String },
+  contactNumber: { type: String },
   lastUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

@@ -100,19 +100,16 @@ const sendOtp = async (req, res) => {
   }
 
   try {
-    // Check if email is already registered and verified
+    // Check if email is already fully registered and verified (not just pending OTP)
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (existingUser && existingUser.name !== '__otp_pending__' && existingUser.isEmailVerified) {
       return res.status(400).json({
         message: 'An account with this email already exists. Please login instead.',
       });
     }
 
-    // Resend cooldown check — look for a partially-registered user record
-    // (We don't create this record until verify-email, but we track OTP in DB
-    //  after the first send via a temp marker. Here we just check using an
-    //  in-memory approach via the existing email field; see resend-otp handler.)
-
+    // Always generate a real random OTP so the email receives it
+    const isDev = process.env.NODE_ENV !== 'production';
     const otp = generateOtp();
 
     // Hash the OTP before storing so it's never in plain text in the DB
@@ -139,8 +136,20 @@ const sendOtp = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // Send OTP via email
-    const emailSent = await sendOtpEmail(email, otp);
+    // Always print OTP to backend console for development
+    console.warn('');
+    console.warn('╔══════════════════════════════════════════════╗');
+    console.warn('║         [DEV] OTP FOR TESTING                ║');
+    console.warn(`║  Email : ${email.padEnd(34)}║`);
+    console.warn(`║  OTP   : ${otp.padEnd(34)}║`);
+    if (isDev) {
+    console.warn('║  Bypass OTP 111000 also accepted             ║');
+    }
+    console.warn('╚══════════════════════════════════════════════╝');
+    console.warn('');
+
+    // Send OTP via email (non-blocking in dev, required in production)
+    const emailSent = await sendOtpEmail(email, otp).catch(() => false);
 
     if (!emailSent && process.env.NODE_ENV === 'production') {
       return res.status(500).json({
@@ -149,11 +158,14 @@ const sendOtp = async (req, res) => {
     }
 
     return res.json({
-      message: 'Verification code sent to your email. Please check your inbox.',
+      message: isDev
+        ? `OTP sent. In development mode, use 111000 as your OTP code.`
+        : 'Verification code sent to your email. Please check your inbox.',
+      ...(isDev && { devOtp: '111000' }), // Return bypass OTP to frontend for easy testing
     });
   } catch (err) {
-    console.error('[SEND-OTP ERROR]', err.message);
-    return res.status(500).json({ message: 'Server error. Please try again.' });
+    console.error('[SEND-OTP ERROR]', err.message, err.stack);
+    return res.status(500).json({ message: `Server error: ${err.message}` });
   }
 };
 
@@ -265,6 +277,20 @@ const verifyEmail = async (req, res) => {
     // Check if already verified
     if (record.isEmailVerified && record.name !== '__otp_pending__') {
       return res.status(400).json({ message: 'This email is already verified.' });
+    }
+
+    const isDev = process.env.NODE_ENV !== 'production';
+    const DEV_BYPASS_OTP = '111000';
+
+    // In dev mode, allow the bypass OTP 111000 to always work
+    if (isDev && otp === DEV_BYPASS_OTP) {
+      record.emailOtpHash = null;
+      record.emailOtpExpires = null;
+      record.emailOtpAttempts = 0;
+      record.isEmailVerified = true;
+      await record.save();
+      console.warn(`[DEV] Bypass OTP 111000 used for: ${email}`);
+      return res.json({ success: true, message: 'Email verified successfully. Please complete your registration.' });
     }
 
     // Check OTP attempt limit
@@ -667,6 +693,7 @@ const getUserProfile = async (req, res) => {
       consumerNumber: user.consumerNumber,
       address: user.address,
       phone: user.phone,
+      preferences: user.preferences,
       createdAt: user.createdAt,
     });
   } catch (error) {
@@ -792,6 +819,122 @@ const changePassword = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Update consumer preferences
+// @route   PATCH /api/auth/preferences
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const updatePreferences = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (!user.preferences) {
+      user.preferences = {};
+    }
+
+    const { smsAlertsEnabled, emailBillEnabled, outageNotificationsEnabled, marketingOptIn, darkMode } = req.body;
+
+    if (smsAlertsEnabled !== undefined) user.preferences.smsAlertsEnabled = smsAlertsEnabled;
+    if (emailBillEnabled !== undefined) user.preferences.emailBillEnabled = emailBillEnabled;
+    if (outageNotificationsEnabled !== undefined) user.preferences.outageNotificationsEnabled = outageNotificationsEnabled;
+    if (marketingOptIn !== undefined) user.preferences.marketingOptIn = marketingOptIn;
+    if (darkMode !== undefined) user.preferences.darkMode = darkMode;
+
+    await user.save();
+
+    return res.json({ message: 'Preferences updated successfully', preferences: user.preferences });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Request account deactivation
+// @route   POST /api/auth/deactivate
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const deactivateAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    user.deactivationRequested = true;
+    await user.save();
+
+    logAudit({
+      action: 'ACCOUNT_DEACTIVATION_REQUESTED',
+      message: `User requested account deactivation`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'user',
+      targetId: user._id,
+      severity: 'warning',
+    });
+
+    notificationService.createNotificationForRole('admin', {
+      title: 'Account Deactivation Request',
+      message: `${user.name} (${user.email}) requested account deactivation.`,
+      type: 'USER_DEACTIVATION',
+      priority: 'high',
+      targetType: 'user',
+      targetId: user._id
+    });
+
+    return res.json({ message: 'Account deactivation requested successfully. Admin will review your request.' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Request account deletion
+// @route   POST /api/auth/delete-request
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const deleteAccountRequest = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    user.deleteRequested = true;
+    await user.save();
+
+    logAudit({
+      action: 'ACCOUNT_DELETE_REQUESTED',
+      message: `User requested permanent account deletion`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'user',
+      targetId: user._id,
+      severity: 'critical',
+    });
+
+    notificationService.createNotificationForRole('admin', {
+      title: 'Account Deletion Request',
+      message: `${user.name} (${user.email}) requested permanent account deletion.`,
+      type: 'USER_DELETION',
+      priority: 'high',
+      targetType: 'user',
+      targetId: user._id
+    });
+
+    return res.json({ message: 'Account deletion requested successfully. Admin will process your request.' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // @desc    Logout from all devices
 // @route   PATCH /api/auth/logout-all
 // @access  Private
@@ -825,16 +968,36 @@ const logoutAllDevices = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Get all consumers
+// @route   GET /api/auth/users/consumers
+// @access  Private (Manager/Admin)
+// ═══════════════════════════════════════════════════════════════════════════════
+const getConsumers = async (req, res) => {
+  try {
+    const consumers = await User.find({ role: 'consumer', status: 'approved' })
+      .select('-password -__v')
+      .sort({ createdAt: -1 });
+    return res.json(consumers);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
+  sendOtp,
+  resendOtp,
+  verifyEmail,
   registerUser,
   authUser,
   getUserProfile,
   updateProfile,
   changePassword,
   logoutAllDevices,
-  sendOtp,
-  verifyEmail,
-  resendOtp,
   getPendingUsers,
   updateUserStatus,
+  updatePreferences,
+  deactivateAccount,
+  deleteAccountRequest,
+  getConsumers
 };

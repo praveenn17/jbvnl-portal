@@ -121,6 +121,28 @@ class RealApi {
     return await response.json();
   }
 
+  // Service Requests
+  async createServiceRequest(data: any): Promise<any> {
+    const response = await fetch('/api/service-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create service request');
+    }
+    return await response.json();
+  }
+
+  async getMyServiceRequests(): Promise<any[]> {
+    const response = await fetch('/api/service-requests/my', {
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) return [];
+    return await response.json();
+  }
+
   // Settings
   async getAdminSettings(): Promise<any> {
     const response = await fetch('/api/settings', {
@@ -281,6 +303,43 @@ class RealApi {
     return await response.json();
   }
 
+  async updateConsumerPreferences(data: any): Promise<any> {
+    const response = await fetch('/api/auth/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update preferences');
+    }
+    return await response.json();
+  }
+
+  async requestDeactivateAccount(): Promise<any> {
+    const response = await fetch('/api/auth/deactivate', {
+      method: 'POST',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to request account deactivation');
+    }
+    return await response.json();
+  }
+
+  async requestDeleteAccount(): Promise<any> {
+    const response = await fetch('/api/auth/delete-request', {
+      method: 'POST',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to request account deletion');
+    }
+    return await response.json();
+  }
+
   async logoutAllDevices(): Promise<any> {
     const response = await fetch('/api/auth/logout-all', {
       method: 'PATCH',
@@ -290,6 +349,58 @@ class RealApi {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to logout from all devices');
     }
+    return await response.json();
+  }
+
+  // ── New Methods for Manager & Admin Messages ──────────────────────────────
+  async getConsumersForManager(): Promise<User[]> {
+    const response = await fetch('/api/auth/users/consumers', { headers: getAuthHeader() });
+    if (!response.ok) throw new Error('Failed to fetch consumers');
+    return await response.json();
+  }
+
+  async sendMessageToAdmin(data: any): Promise<any> {
+    const response = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to send message');
+    }
+    return await response.json();
+  }
+
+  async getAdminMessages(): Promise<any[]> {
+    const response = await fetch('/api/messages/admin', { headers: getAuthHeader() });
+    if (!response.ok) throw new Error('Failed to fetch messages');
+    return await response.json();
+  }
+
+  async markMessageRead(id: string): Promise<any> {
+    const response = await fetch(`/api/messages/${id}/read`, {
+      method: 'PATCH',
+      headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Failed to mark message as read');
+    return await response.json();
+  }
+
+  async closeMessage(id: string): Promise<any> {
+    const response = await fetch(`/api/messages/${id}/close`, {
+      method: 'PATCH',
+      headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Failed to close message');
+    return await response.json();
+  }
+
+  async getManagerComplaints(): Promise<Complaint[]> {
+    // Falls back to getComplaints which already gets manager complaints in the backend stats/complaints flow.
+    // Let's assume there is /api/complaints/manager or /api/complaints for manager
+    const response = await fetch('/api/complaints', { headers: getAuthHeader() });
+    if (!response.ok) throw new Error('Failed to fetch complaints');
     return await response.json();
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,35 +6,78 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { mockApi } from '@/lib/mockApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ConsumerProfile: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { refreshUser } = useAuth() as any;
   
   const [profile, setProfile] = useState({
-    name: 'Rahul Kumar',
-    email: 'rahul.kumar@email.com',
-    phone: '+91 9876543210',
-    address: '123 Main Street, Ranchi, Jharkhand 834001',
-    consumerNumber: 'JBVNL001'
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    consumerNumber: ''
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState(profile);
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = () => {
-    setProfile(editedProfile);
-    setIsEditing(false);
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been updated successfully",
-    });
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data = await mockApi.getMyProfile();
+        const profData = {
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          address: data.address || '',
+          consumerNumber: data.consumerNumber || ''
+        };
+        setProfile(profData);
+        setEditedProfile(profData);
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await mockApi.updateMyProfile({
+        name: editedProfile.name,
+        phone: editedProfile.phone,
+        address: editedProfile.address
+      });
+      setProfile(editedProfile);
+      setIsEditing(false);
+      if (refreshUser) await refreshUser();
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Failed to Update",
+        description: err.message || "Failed to update profile",
+        variant: "destructive"
+      });
+    }
   };
-
   const handleCancel = () => {
     setEditedProfile(profile);
     setIsEditing(false);
   };
+
+  if (loading) {
+    return <div className="min-h-screen bg-background p-6 flex items-center justify-center">Loading profile...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -77,6 +120,7 @@ const ConsumerProfile: React.FC = () => {
                     id="email"
                     type="email"
                     value={editedProfile.email}
+                    disabled // Email cannot be changed here usually
                     onChange={(e) => setEditedProfile({...editedProfile, email: e.target.value})}
                   />
                 ) : (

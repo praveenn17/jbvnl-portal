@@ -132,7 +132,7 @@ const ConsumerDashboard: React.FC = () => {
             Welcome, {user?.name ?? 'Consumer'}
           </h1>
           <p className="text-muted-foreground">
-            Consumer Number: JBVNL001 &bull; Category: Consumer
+            Consumer Number: {user?.consumerNumber || '—'} &bull; Category: Consumer
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -165,11 +165,11 @@ const ConsumerDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Phone</p>
-              <p className="font-medium">+91 9876543210</p>
+              <p className="font-medium">{user?.phone || '—'}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Address</p>
-              <p className="font-medium">123 Main Street, Ranchi, Jharkhand</p>
+              <p className="font-medium">{user?.address || '—'}</p>
             </div>
           </div>
           <div className="flex gap-4 mt-4">
@@ -289,7 +289,7 @@ const ConsumerDashboard: React.FC = () => {
           </div>
 
           <div className="grid gap-4">
-            {bills.map((bill) => (
+            {bills.length > 0 ? bills.map((bill) => (
               <Card key={bill.id} className="hover-scale">
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -315,11 +315,11 @@ const ConsumerDashboard: React.FC = () => {
                       <p className="text-lg font-semibold">{new Date(bill.dueDate).toLocaleDateString()}</p>
                     </div>
                     <div className="flex gap-2 items-end">
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/consumer/bill-details/${bill.id}`)}>
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/consumer/bill-details/${bill._id || bill.id}`)}>
                         View Details
                       </Button>
                       {bill.status === 'pending' && (
-                        <Button size="sm" className="bg-secondary hover:bg-secondary/90" onClick={() => handlePayBill(bill.id)}>
+                        <Button size="sm" className="bg-secondary hover:bg-secondary/90" onClick={() => handlePayBill(bill._id || bill.id)}>
                           Pay Now
                         </Button>
                       )}
@@ -327,7 +327,12 @@ const ConsumerDashboard: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )) : (
+              <div className="text-center py-10 bg-card rounded-lg border border-border">
+                <p className="text-muted-foreground mb-4">You have no bills history available.</p>
+                <Button variant="outline" onClick={() => navigate('/consumer/form/billing-concern')}>Raise Billing Concern</Button>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -341,8 +346,8 @@ const ConsumerDashboard: React.FC = () => {
           </div>
 
           <div className="grid gap-4">
-            {complaints.map((complaint) => (
-              <Card key={complaint.id} className="hover-scale">
+            {complaints.length > 0 ? complaints.map((complaint: any) => (
+              <Card key={complaint._id || complaint.id} className="hover-scale">
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
@@ -366,13 +371,18 @@ const ConsumerDashboard: React.FC = () => {
                       <span className="text-sm">Priority: <Badge variant="secondary">{complaint.priority}</Badge></span>
                       <span className="text-sm">Status: <Badge>{complaint.status}</Badge></span>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/consumer/complaint-tracking/${complaint.id}`)}>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/consumer/complaint-tracking/${complaint._id || complaint.id}`)}>
                       Track Status
                     </Button>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )) : (
+              <div className="text-center py-10 bg-card rounded-lg border border-border">
+                <p className="text-muted-foreground mb-4">You haven't registered any complaints.</p>
+                <Button variant="outline" onClick={() => navigate('/consumer/form/register-complaint')}>Register New Complaint</Button>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -471,7 +481,7 @@ const ConsumerDashboard: React.FC = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { label: 'Consumer Number', value: 'JBVNL001' },
+                  { label: 'Consumer Number', value: user?.consumerNumber || '—' },
                   { label: 'Connection Type', value: 'Residential' },
                   { label: 'Sanctioned Load', value: '5 KW' },
                   { label: 'Tariff Category', value: 'LT-1A' },

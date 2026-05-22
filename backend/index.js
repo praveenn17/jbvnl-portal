@@ -28,10 +28,12 @@ app.use((req, res, next) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/bills', require('./routes/billRoutes'));
 app.use('/api/complaints', require('./routes/complaintRoutes'));
+app.use('/api/service-requests', require('./routes/serviceRequestRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/audit-logs', require('./routes/auditRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api/messages', require('./routes/messageRoutes'));
 
 app.get('/api/status', (req, res) => {
   res.json({

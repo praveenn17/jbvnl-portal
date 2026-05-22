@@ -244,6 +244,8 @@ const ActiveComplaints: React.FC = () => {
                 <div><p className="text-xs text-muted-foreground">Reported</p><p className="text-sm font-medium text-foreground">{new Date(detail.createdAt).toLocaleString('en-IN')}</p></div>
                 {detail.sla && <div><p className="text-xs text-muted-foreground">SLA Target</p><p className="text-sm font-medium text-foreground">{new Date(detail.sla.dueAt).toLocaleString('en-IN')}</p></div>}
                 {detail.resolvedAt && <div><p className="text-xs text-muted-foreground">Resolved At</p><p className="text-sm font-medium text-foreground">{new Date(detail.resolvedAt).toLocaleString('en-IN')}</p></div>}
+                {detail.contactNumber && <div><p className="text-xs text-muted-foreground">Contact Phone</p><p className="text-sm font-medium text-foreground">{detail.contactNumber}</p></div>}
+                {detail.preferredTime && <div><p className="text-xs text-muted-foreground">Preferred Time</p><p className="text-sm font-medium text-foreground">{detail.preferredTime}</p></div>}
               </div>
               
               <div><p className="text-xs text-muted-foreground mb-1">Full Description</p><p className="text-sm text-foreground bg-muted/40 p-3 rounded-lg border border-border/50">{detail.description}</p></div>
@@ -290,8 +292,25 @@ const ActiveComplaints: React.FC = () => {
               <DialogTitle>Contact Consumer</DialogTitle>
               <DialogDescription>{contact.consumerNumber}</DialogDescription>
             </DialogHeader>
-            <div className="py-6 text-center text-muted-foreground">
-              <p>Consumer details are masked in this view. Use consumer lookup via dashboard.</p>
+            <div className="py-6 text-muted-foreground">
+              {contact.contactNumber ? (
+                <div className="space-y-4 text-left bg-muted/20 p-4 rounded-lg">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contact Phone</p>
+                    <p className="text-lg font-semibold text-foreground">{contact.contactNumber}</p>
+                  </div>
+                  {contact.preferredTime && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Preferred Contact Time</p>
+                      <p className="text-md font-medium text-foreground">{contact.preferredTime}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p>Consumer details are masked in this view. Use consumer lookup via dashboard.</p>
+                </div>
+              )}
             </div>
             <DialogFooter><Button onClick={() => setContactId(null)}>Close</Button></DialogFooter>
           </>)}
