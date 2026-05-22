@@ -539,7 +539,7 @@ const authUser = async (req, res) => {
     // Role mismatch check (user selected wrong role on login form)
     if (role && user.role !== role) {
       return res.status(401).json({
-        message: `Role mismatch. This account is registered as a ${user.role}.`,
+        message: 'Invalid email, password, or role. Please check your credentials and try again.',
       });
     }
 

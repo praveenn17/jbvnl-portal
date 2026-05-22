@@ -62,13 +62,11 @@ const LoginTab: React.FC<LoginTabProps> = ({ onSuccess }) => {
         errorTitle = 'Email Not Verified';
         errorDesc = 'Please verify your email before logging in. Check your inbox for the verification code.';
         setEmailNotVerifiedMsg(errorDesc);
-      } else if (msg.toLowerCase().includes('role mismatch')) {
-        errorTitle = 'Role Mismatch';
       } else if (msg.toLowerCase().includes('pending')) {
         errorTitle = 'Account Pending';
-      } else if (msg.toLowerCase().includes('invalid email or password')) {
+      } else if (msg.toLowerCase().includes('invalid email') || msg.toLowerCase().includes('invalid email, password, or role')) {
         errorTitle = 'Login Failed';
-        errorDesc = 'The email or password you entered is incorrect.';
+        errorDesc = msg; // Will be the generic message from the backend
       }
 
       toast({
