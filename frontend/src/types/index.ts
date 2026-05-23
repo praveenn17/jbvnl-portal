@@ -83,3 +83,34 @@ export interface AuditLog {
   severity: 'info' | 'warning' | 'critical';
   createdAt: string;
 }
+
+export interface Conversation {
+  _id: string;
+  subject: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: 'complaint' | 'system' | 'billing' | 'consumer' | 'other';
+  initiatedBy: string;
+  initiatedByName: string;
+  initiatedByEmail: string;
+  participants: string[];
+  status: 'open' | 'read' | 'closed';
+  lastMessageAt: string;
+  lastMessagePreview: string;
+  closedAt?: string;
+  closedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationMessage {
+  _id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'admin' | 'manager';
+  message: string;
+  readBy: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+

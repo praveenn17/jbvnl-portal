@@ -396,6 +396,69 @@ class RealApi {
     return await response.json();
   }
 
+  // ── Two-Way Conversation System ────────────────────────────────────────
+  async createConversation(data: { subject: string; message: string; priority?: string; category?: string }): Promise<any> {
+    const response = await fetch('/api/messages/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create conversation');
+    }
+    return await response.json();
+  }
+
+  async getConversations(): Promise<any[]> {
+    const response = await fetch('/api/messages/conversations', { headers: getAuthHeader() });
+    if (!response.ok) throw new Error('Failed to fetch conversations');
+    return await response.json();
+  }
+
+  async getConversationById(id: string): Promise<{ conversation: any; messages: any[] }> {
+    const response = await fetch(`/api/messages/conversations/${id}`, { headers: getAuthHeader() });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to fetch conversation');
+    }
+    return await response.json();
+  }
+
+  async replyToConversation(id: string, message: string): Promise<any> {
+    const response = await fetch(`/api/messages/conversations/${id}/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ message }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to send reply');
+    }
+    return await response.json();
+  }
+
+  async markConversationRead(id: string): Promise<any> {
+    const response = await fetch(`/api/messages/conversations/${id}/read`, {
+      method: 'PATCH',
+      headers: getAuthHeader(),
+    });
+    if (!response.ok) throw new Error('Failed to mark conversation as read');
+    return await response.json();
+  }
+
+  async closeConversation(id: string): Promise<any> {
+    const response = await fetch(`/api/messages/conversations/${id}/close`, {
+      method: 'PATCH',
+      headers: getAuthHeader(),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to close conversation');
+    }
+    return await response.json();
+  }
+
   async getManagerComplaints(): Promise<Complaint[]> {
     // Falls back to getComplaints which already gets manager complaints in the backend stats/complaints flow.
     // Let's assume there is /api/complaints/manager or /api/complaints for manager

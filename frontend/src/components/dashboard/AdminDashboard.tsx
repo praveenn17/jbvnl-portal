@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,43 +11,240 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { User, Complaint } from '../../types';
-import { Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Clock, XCircle, Settings, Eye } from 'lucide-react';
+import {
+  Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Clock,
+  XCircle, Eye, MessageSquare, ChevronDown, ChevronRight, RefreshCcw,
+} from 'lucide-react';
 import AdminSettings from './AdminSettings';
 import ApprovalDetailsModal from './ApprovalDetailsModal';
 import AuditLogs from './AuditLogs';
-
-// ── Component ────────────────────────────────────────────────────────────────
-
+import ConversationChatModal from '../chat/ConversationChatModal';
 import { mockApi } from '../../lib/mockApi';
 
+// ── Priority / Status colour helpers ─────────────────────────────────────────
+const PRIORITY_COLORS: Record<string, string> = {
+  low:    'bg-green-500/20 text-green-400 border-green-500/30',
+  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  high:   'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  urgent: 'bg-red-500/20 text-red-400 border-red-500/30',
+};
+const STATUS_COLORS: Record<string, string> = {
+  open:   'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  read:   'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  closed: 'bg-red-500/20 text-red-400 border-red-500/30',
+};
+
+// ── MessagesTabContent ────────────────────────────────────────────────────────
+const MessagesTabContent: React.FC<{
+  legacyMessages: any[];
+  onMarkRead:     (id: string) => void;
+  onCloseMessage: (id: string) => void;
+}> = ({ legacyMessages, onMarkRead, onCloseMessage }) => {
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [loadingConv, setLoadingConv]     = useState(true);
+  const [openChatId, setOpenChatId]       = useState<string | null>(null);
+  const [showLegacy, setShowLegacy]       = useState(false);
+
+  const loadConversations = async () => {
+    setLoadingConv(true);
+    try {
+      const data = await mockApi.getConversations();
+      setConversations(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.warn('Failed to load conversations:', err?.message);
+      setConversations([]);
+    } finally {
+      setLoadingConv(false);
+    }
+  };
+
+  useEffect(() => { loadConversations(); }, []);
+
+  const handleStatusChange = (id: string, status: string) => {
+    setConversations(prev => prev.map(c => c._id === id ? { ...c, status } : c));
+  };
+
+  const safeMessages = Array.isArray(legacyMessages) ? legacyMessages : [];
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">Manager Conversations</h3>
+          <p className="text-sm text-muted-foreground">Two-way threaded conversations with managers</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={loadConversations} disabled={loadingConv}>
+          <RefreshCcw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Conversation list */}
+      {loadingConv ? (
+        <div className="text-center py-8 text-muted-foreground">Loading conversations…</div>
+      ) : conversations.length === 0 ? (
+        <Card className="border-dashed border-2 border-border">
+          <CardContent className="pt-8 pb-8 text-center">
+            <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-30" />
+            <p className="text-foreground font-medium">No conversations yet</p>
+            <p className="text-muted-foreground text-sm mt-1">Managers haven't started any conversations.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3">
+          {conversations.map((conv: any) => (
+            <div
+              key={conv._id}
+              onClick={() => setOpenChatId(conv._id)}
+              className={`rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.01] ${
+                conv.status === 'open' ? 'border-l-4 border-l-blue-500' : ''
+              }`}
+              style={{ background: 'hsl(217, 33%, 14%)', border: '1px solid hsl(217, 33%, 22%)' }}
+            >
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <MessageSquare className="h-4 w-4 text-blue-400 shrink-0" />
+                    <span className="font-semibold text-foreground truncate">{conv.subject}</span>
+                    {conv.status === 'open' && (
+                      <Badge className="bg-blue-500 text-white text-xs shrink-0">New</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    From <span className="text-blue-400">{conv.initiatedByName}</span>
+                    {' · '}
+                    {new Date(conv.lastMessageAt).toLocaleString('en-IN', {
+                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                    })}
+                  </p>
+                  <p className="text-sm text-muted-foreground truncate">{conv.lastMessagePreview}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <Badge className={`text-xs ${PRIORITY_COLORS[conv.priority] ?? ''}`}>{conv.priority}</Badge>
+                  <Badge className={`text-xs ${STATUS_COLORS[conv.status] ?? ''}`}>{conv.status}</Badge>
+                  <Badge variant="outline" className="text-xs capitalize">{conv.category}</Badge>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Legacy Messages (collapsed) */}
+      {safeMessages.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowLegacy(v => !v)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showLegacy
+              ? <ChevronDown className="h-4 w-4" />
+              : <ChevronRight className="h-4 w-4" />}
+            Legacy Messages ({safeMessages.length})
+          </button>
+
+          {showLegacy && (
+            <div className="grid gap-3 mt-3">
+              {safeMessages.map((msg: any) => (
+                <Card
+                  key={msg._id}
+                  className={msg.status === 'unread' ? 'border-l-4 border-l-blue-500' : ''}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          {msg.subject}
+                          {msg.status === 'unread' && <Badge className="bg-blue-500">New</Badge>}
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          From: {msg.senderName} · {new Date(msg.createdAt).toLocaleString()}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="outline" className="capitalize text-xs">{msg.priority}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm mb-3 bg-muted/50 p-3 rounded-md whitespace-pre-wrap">{msg.message}</p>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs">
+                          Category: <Badge variant="secondary" className="capitalize text-xs">{msg.category}</Badge>
+                        </span>
+                        <span className="text-xs">
+                          Status: <Badge variant="outline" className="capitalize text-xs">{msg.status}</Badge>
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        {msg.status === 'unread' && (
+                          <Button
+                            size="sm" variant="outline"
+                            onClick={e => { e.stopPropagation(); onMarkRead(msg._id); }}
+                          >
+                            Mark Read
+                          </Button>
+                        )}
+                        {msg.status !== 'closed' && (
+                          <Button
+                            size="sm"
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            onClick={e => { e.stopPropagation(); onCloseMessage(msg._id); }}
+                          >
+                            Close
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Chat Modal */}
+      {openChatId && (
+        <ConversationChatModal
+          conversationId={openChatId}
+          onClose={() => { setOpenChatId(null); loadConversations(); }}
+          onStatusChange={handleStatusChange}
+        />
+      )}
+    </div>
+  );
+};
+
+// ── AdminDashboard ─────────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
   const { pendingUsers, updateUserStatus, user, refreshPendingUsers } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>({ 
-    revenue: 0, 
-    totalUsers: 0, 
+  const [complaints, setComplaints]             = useState<Complaint[]>([]);
+  const [messages, setMessages]                 = useState<any[]>([]);
+  const [stats, setStats]                       = useState<any>({
+    revenue: 0,
+    totalUsers: 0,
     activeComplaints: 0,
     monthlyRevenue: [],
-    complaintsByCategory: [] 
+    complaintsByCategory: [],
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]                   = useState(true);
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [complaintsData, statsData, messagesData] = await Promise.all([
           mockApi.getComplaints(),
           mockApi.getDashboardStats(),
-          mockApi.getAdminMessages().catch(() => []) // Handle errors gracefully
+          mockApi.getAdminMessages().catch(() => []),
         ]);
         setComplaints(complaintsData);
         setStats(statsData);
-        setMessages(messagesData);
+        setMessages(Array.isArray(messagesData) ? messagesData : []);
       } catch (error) {
         console.error('Failed to fetch admin data:', error);
       } finally {
@@ -57,7 +253,7 @@ const AdminDashboard: React.FC = () => {
     };
     fetchData();
 
-    // Auto-refresh pending users every 30 seconds so new manager requests appear
+    // Auto-refresh pending users every 30 seconds
     const intervalId = setInterval(() => refreshPendingUsers(), 30000);
     return () => clearInterval(intervalId);
   }, []);
@@ -65,9 +261,9 @@ const AdminDashboard: React.FC = () => {
   const handleMarkMessageRead = async (id: string) => {
     try {
       await mockApi.markMessageRead(id);
-      setMessages(messages.map(m => m._id === id ? { ...m, status: 'read' } : m));
+      setMessages(prev => prev.map(m => m._id === id ? { ...m, status: 'read' } : m));
       toast({ title: 'Success', description: 'Message marked as read' });
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to mark message as read', variant: 'destructive' });
     }
   };
@@ -75,9 +271,9 @@ const AdminDashboard: React.FC = () => {
   const handleCloseMessage = async (id: string) => {
     try {
       await mockApi.closeMessage(id);
-      setMessages(messages.map(m => m._id === id ? { ...m, status: 'closed' } : m));
+      setMessages(prev => prev.map(m => m._id === id ? { ...m, status: 'closed' } : m));
       toast({ title: 'Success', description: 'Message closed' });
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to close message', variant: 'destructive' });
     }
   };
@@ -117,8 +313,8 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const hasRevenueData = stats.monthlyRevenue && stats.monthlyRevenue.some((d: any) => d.revenue > 0);
-  const hasComplaintData = stats.complaintsByCategory && stats.complaintsByCategory.some((d: any) => d.value > 0);
+  const hasRevenueData   = stats.monthlyRevenue?.some((d: any) => d.revenue > 0);
+  const hasComplaintData = stats.complaintsByCategory?.some((d: any) => d.value > 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -131,9 +327,10 @@ const AdminDashboard: React.FC = () => {
         <Badge variant="outline" className="text-sm border-primary/40 text-primary">Category: Admin</Badge>
       </div>
 
-      {/* Admin Stats */}
+      {/* Stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-        <Card className="hover-scale cursor-pointer border-l-4 border-l-secondary" onClick={() => navigate('/admin/pending-approvals')}>
+        <Card className="hover-scale cursor-pointer border-l-4 border-l-secondary"
+          onClick={() => navigate('/admin/pending-approvals')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
             <UserCheck className="h-5 w-5 text-secondary" />
@@ -144,24 +341,30 @@ const AdminDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="hover-scale cursor-pointer border-l-4 border-l-destructive" onClick={() => navigate('/admin/active-complaints')}>
+        <Card className="hover-scale cursor-pointer border-l-4 border-l-destructive"
+          onClick={() => navigate('/admin/active-complaints')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Active Complaints</CardTitle>
             <AlertTriangle className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{complaints.filter(c => c.status !== 'resolved').length}</div>
+            <div className="text-3xl font-bold text-foreground">
+              {complaints.filter(c => c.status !== 'resolved').length}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">{complaints.length} total</p>
           </CardContent>
         </Card>
 
-        <Card className="hover-scale cursor-pointer border-l-4 border-l-emerald-400" onClick={() => navigate('/admin/revenue-details')}>
+        <Card className="hover-scale cursor-pointer border-l-4 border-l-emerald-400"
+          onClick={() => navigate('/admin/revenue-details')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Revenue</CardTitle>
             <TrendingUp className="h-5 w-5 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-emerald-400">₹{(stats.revenue / 100000).toFixed(1)}L</div>
+            <div className="text-3xl font-bold text-emerald-400">
+              ₹{(stats.revenue / 100000).toFixed(1)}L
+            </div>
             <p className="text-xs text-muted-foreground mt-1">Total collected revenue</p>
           </CardContent>
         </Card>
@@ -178,7 +381,7 @@ const AdminDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Admin Content Tabs */}
+      {/* Tabs */}
       <Tabs defaultValue="approvals" className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="approvals">User Approvals</TabsTrigger>
@@ -189,77 +392,28 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        {/* ── Messages Tab (NEW) ─────────────────────────────────────────────── */}
+        {/* ── Messages tab ─────────────────────────────────────── */}
         <TabsContent value="messages" className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Manager Messages</h3>
-            <p className="text-sm text-muted-foreground">Internal communications from system managers</p>
-          </div>
-          {messages.length === 0 ? (
-            <Card className="border-dashed border-2 border-border">
-              <CardContent className="pt-8 pb-8 text-center">
-                <p className="text-foreground font-medium">No messages</p>
-                <p className="text-muted-foreground text-sm mt-1">Inbox is empty</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {messages.map((msg: any) => (
-                <Card key={msg._id} className={`hover-scale ${msg.status === 'unread' ? 'border-l-4 border-l-blue-500' : ''}`}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {msg.subject}
-                          {msg.status === 'unread' && <Badge className="bg-blue-500">New</Badge>}
-                        </CardTitle>
-                        <CardDescription>
-                          From: {msg.senderName} ({msg.senderEmail}) - {new Date(msg.createdAt).toLocaleString()}
-                        </CardDescription>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline" className="capitalize">{msg.priority} Priority</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm mb-4 bg-muted/50 p-4 rounded-md whitespace-pre-wrap">{msg.message}</p>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm">Category: <Badge variant="secondary" className="capitalize">{msg.category}</Badge></span>
-                        <span className="text-sm">Status: <Badge variant="outline" className="capitalize">{msg.status}</Badge></span>
-                      </div>
-                      <div className="flex gap-2">
-                        {msg.status === 'unread' && (
-                          <Button size="sm" variant="outline" onClick={() => handleMarkMessageRead(msg._id)}>Mark as Read</Button>
-                        )}
-                        {msg.status !== 'closed' && (
-                          <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleCloseMessage(msg._id)}>Close Message</Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <MessagesTabContent
+            legacyMessages={messages}
+            onMarkRead={handleMarkMessageRead}
+            onCloseMessage={handleCloseMessage}
+          />
         </TabsContent>
 
-        {/* ── User Approvals Tab ─────────────────────────────────────────────── */}
+        {/* ── User Approvals tab ───────────────────────────────── */}
         <TabsContent value="approvals" className="space-y-4">
           <div className="flex justify-between items-start">
             <div>
               <h3 className="text-lg font-semibold text-foreground">
                 Pending User Approvals
                 {displayPendingUsers.length > 0 && (
-                  <Badge className="ml-2">{ displayPendingUsers.length}</Badge>
+                  <Badge className="ml-2">{displayPendingUsers.length}</Badge>
                 )}
               </h3>
               <p className="text-sm text-muted-foreground">Review and approve new user registrations</p>
             </div>
-            <Button variant="outline" size="sm" onClick={refreshPendingUsers}>
-              ↻ Refresh List
-            </Button>
+            <Button variant="outline" size="sm" onClick={refreshPendingUsers}>↻ Refresh List</Button>
           </div>
 
           {displayPendingUsers.length === 0 ? (
@@ -304,7 +458,8 @@ const AdminDashboard: React.FC = () => {
                         <Button variant="outline" size="sm" onClick={() => handleUserApproval(u.id, 'reject')}>
                           Reject
                         </Button>
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleUserApproval(u.id, 'approve')}>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleUserApproval(u.id, 'approve')}>
                           Accept
                         </Button>
                       </div>
@@ -316,7 +471,7 @@ const AdminDashboard: React.FC = () => {
           )}
         </TabsContent>
 
-        {/* ── Complaints Tab ─────────────────────────────────────────────────── */}
+        {/* ── Complaints tab ───────────────────────────────────── */}
         <TabsContent value="complaints" className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold">Complaint Management</h3>
@@ -347,8 +502,10 @@ const AdminDashboard: React.FC = () => {
                       <span className="text-sm">Status: <Badge variant="secondary">{complaint.status}</Badge></span>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => navigate('/admin/active-complaints')}>View Details</Button>
-                      <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={() => navigate('/admin/active-complaints')}>Update Status</Button>
+                      <Button variant="outline" size="sm"
+                        onClick={() => navigate('/admin/active-complaints')}>View Details</Button>
+                      <Button size="sm" className="bg-primary hover:bg-primary/90"
+                        onClick={() => navigate('/admin/active-complaints')}>Update Status</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -357,7 +514,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* ── Analytics Tab (NEW) ────────────────────────────────────────────── */}
+        {/* ── Analytics tab ────────────────────────────────────── */}
         <TabsContent value="analytics" className="space-y-6">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Analytics & Reports</h3>
@@ -365,7 +522,6 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Monthly Revenue Bar Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Monthly Revenue (₹ Millions)</CardTitle>
@@ -395,7 +551,6 @@ const AdminDashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Complaints by Category Pie Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Complaints by Category</CardTitle>
@@ -412,22 +567,17 @@ const AdminDashboard: React.FC = () => {
                     <PieChart>
                       <Pie
                         data={stats.complaintsByCategory || []}
-                        cx="45%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={85}
+                        cx="45%" cy="50%"
+                        innerRadius={55} outerRadius={85}
                         paddingAngle={3}
-                        dataKey="value"
-                        nameKey="name"
+                        dataKey="value" nameKey="name"
                       >
                         {(stats.complaintsByCategory || []).map((entry: any, index: number) => (
                           <Cell key={index} fill={entry.color} />
                         ))}
                       </Pie>
                       <Legend
-                        layout="vertical"
-                        align="right"
-                        verticalAlign="middle"
+                        layout="vertical" align="right" verticalAlign="middle"
                         formatter={(value) => <span style={{ fontSize: 12 }}>{value}</span>}
                       />
                       <Tooltip
@@ -442,7 +592,6 @@ const AdminDashboard: React.FC = () => {
             </Card>
           </div>
 
-          {/* Monthly Stats */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Monthly Performance</CardTitle>
@@ -450,10 +599,10 @@ const AdminDashboard: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
-                  { label: 'New Registrations', value: '180', color: 'text-primary' },
-                  { label: 'Bills Generated', value: '12,456', color: 'text-sky-400' },
-                  { label: 'Payments Received', value: '11,890', color: 'text-emerald-400' },
-                  { label: 'Complaints Resolved', value: '89%', color: 'text-amber-400' },
+                  { label: 'New Registrations',  value: '180',    color: 'text-primary' },
+                  { label: 'Bills Generated',     value: '12,456', color: 'text-sky-400' },
+                  { label: 'Payments Received',   value: '11,890', color: 'text-emerald-400' },
+                  { label: 'Complaints Resolved', value: '89%',    color: 'text-amber-400' },
                 ].map(stat => (
                   <div key={stat.label} className="text-center p-4 rounded-lg bg-muted/40">
                     <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -473,10 +622,10 @@ const AdminDashboard: React.FC = () => {
           <AuditLogs />
         </TabsContent>
       </Tabs>
-      
-      <ApprovalDetailsModal 
-        user={selectedUserForModal} 
-        onClose={() => setSelectedUserForModal(null)} 
+
+      <ApprovalDetailsModal
+        user={selectedUserForModal}
+        onClose={() => setSelectedUserForModal(null)}
       />
     </div>
   );
