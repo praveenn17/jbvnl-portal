@@ -1,4 +1,4 @@
-import { Bill, Complaint } from '../types';
+import { Bill, Complaint, User } from '../types';
 
 const getAuthHeader = () => {
   const token = localStorage.getItem('jbvnl_token');

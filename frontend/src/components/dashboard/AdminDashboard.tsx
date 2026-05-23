@@ -23,27 +23,27 @@ import { mockApi } from '../../lib/mockApi';
 
 // ── Priority / Status colour helpers ─────────────────────────────────────────
 const PRIORITY_COLORS: Record<string, string> = {
-  low:    'bg-green-500/20 text-green-400 border-green-500/30',
+  low: 'bg-green-500/20 text-green-400 border-green-500/30',
   medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  high:   'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   urgent: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 const STATUS_COLORS: Record<string, string> = {
-  open:   'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  read:   'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  open: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  read: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   closed: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
 // ── MessagesTabContent ────────────────────────────────────────────────────────
 const MessagesTabContent: React.FC<{
   legacyMessages: any[];
-  onMarkRead:     (id: string) => void;
+  onMarkRead: (id: string) => void;
   onCloseMessage: (id: string) => void;
 }> = ({ legacyMessages, onMarkRead, onCloseMessage }) => {
   const [conversations, setConversations] = useState<any[]>([]);
-  const [loadingConv, setLoadingConv]     = useState(true);
-  const [openChatId, setOpenChatId]       = useState<string | null>(null);
-  const [showLegacy, setShowLegacy]       = useState(false);
+  const [loadingConv, setLoadingConv] = useState(true);
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
+  const [showLegacy, setShowLegacy] = useState(false);
 
   const loadConversations = async () => {
     setLoadingConv(true);
@@ -97,9 +97,8 @@ const MessagesTabContent: React.FC<{
             <div
               key={conv._id}
               onClick={() => setOpenChatId(conv._id)}
-              className={`rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.01] ${
-                conv.status === 'open' ? 'border-l-4 border-l-blue-500' : ''
-              }`}
+              className={`rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.01] ${conv.status === 'open' ? 'border-l-4 border-l-blue-500' : ''
+                }`}
               style={{ background: 'hsl(217, 33%, 14%)', border: '1px solid hsl(217, 33%, 22%)' }}
             >
               <div className="flex justify-between items-start gap-4">
@@ -222,16 +221,16 @@ const AdminDashboard: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const [complaints, setComplaints]             = useState<Complaint[]>([]);
-  const [messages, setMessages]                 = useState<any[]>([]);
-  const [stats, setStats]                       = useState<any>({
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({
     revenue: 0,
     totalUsers: 0,
     activeComplaints: 0,
     monthlyRevenue: [],
     complaintsByCategory: [],
   });
-  const [loading, setLoading]                   = useState(true);
+  const [loading, setLoading] = useState(true);
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
 
   useEffect(() => {
@@ -298,22 +297,22 @@ const AdminDashboard: React.FC = () => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'high':   return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
       case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      default:       return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      default: return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'pending':  return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'pending': return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'rejected': return <XCircle className="h-4 w-4 text-red-500" />;
-      default:         return <Clock className="h-4 w-4 text-gray-500" />;
+      default: return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  const hasRevenueData   = stats.monthlyRevenue?.some((d: any) => d.revenue > 0);
+  const hasRevenueData = stats.monthlyRevenue?.some((d: any) => d.revenue > 0);
   const hasComplaintData = stats.complaintsByCategory?.some((d: any) => d.value > 0);
 
   return (
@@ -599,10 +598,10 @@ const AdminDashboard: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
-                  { label: 'New Registrations',  value: '180',    color: 'text-primary' },
-                  { label: 'Bills Generated',     value: '12,456', color: 'text-sky-400' },
-                  { label: 'Payments Received',   value: '11,890', color: 'text-emerald-400' },
-                  { label: 'Complaints Resolved', value: '89%',    color: 'text-amber-400' },
+                  { label: 'New Registrations', value: '180', color: 'text-primary' },
+                  { label: 'Bills Generated', value: '12,456', color: 'text-sky-400' },
+                  { label: 'Payments Received', value: '11,890', color: 'text-emerald-400' },
+                  { label: 'Complaints Resolved', value: '89%', color: 'text-amber-400' },
                 ].map(stat => (
                   <div key={stat.label} className="text-center p-4 rounded-lg bg-muted/40">
                     <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
