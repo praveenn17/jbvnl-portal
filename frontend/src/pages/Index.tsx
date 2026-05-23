@@ -7,6 +7,7 @@ import AdminDashboard from '../components/dashboard/AdminDashboard';
 import ManagerDashboard from '../components/dashboard/ManagerDashboard';
 import HomePage from '../components/home/HomePage';
 import LoginPage from '../components/home/LoginPage';
+import Footer from '../components/home/Footer';
 
 const Index = () => {
   const { user, isAuthenticated } = useAuth();
@@ -29,9 +30,12 @@ const Index = () => {
 
   if (isAuthenticated && user) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         <Header />
-        {renderDashboard()}
+        <main className="flex-grow">
+          {renderDashboard()}
+        </main>
+        <Footer />
       </div>
     );
   }

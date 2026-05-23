@@ -41,8 +41,11 @@ const Footer: React.FC = () => {
             </ul>
           </div>
         </div>
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col items-center justify-center space-y-2 text-sm text-gray-400">
           <p>&copy; 2024 Jharkhand Bijli Vitran Nigam Limited. All rights reserved.</p>
+          <p className="opacity-80">
+            Built by <span className="text-cyan-400 font-medium">Praveen Kumar</span>
+          </p>
         </div>
       </div>
     </footer>
