@@ -21,6 +21,12 @@ import AuditLogs from './AuditLogs';
 import ConversationChatModal from '../chat/ConversationChatModal';
 import { mockApi } from '../../lib/mockApi';
 
+
+const getApiUrl = (url: string) => {
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+  return baseURL + url;
+};
+
 // ── Priority / Status colour helpers ─────────────────────────────────────────
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-green-500/20 text-green-400 border-green-500/30',

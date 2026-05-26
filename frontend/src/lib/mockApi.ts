@@ -1,5 +1,11 @@
 import { Bill, Complaint, User } from '../types';
 
+
+const getApiUrl = (url: string) => {
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+  return baseURL + url;
+};
+
 const getAuthHeader = () => {
   const token = localStorage.getItem('jbvnl_token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -10,7 +16,7 @@ class RealApi {
   async getBills(consumerNumber?: string): Promise<Bill[]> {
     if (!consumerNumber) return [];
     
-    const response = await fetch(`/api/bills/${consumerNumber}`, {
+    const response = await fetch(getApiUrl(`/api/bills/${consumerNumber}`), {
       headers: { ...getAuthHeader() }
     });
     
@@ -19,7 +25,7 @@ class RealApi {
   }
 
   async getBillById(id: string): Promise<Bill | undefined> {
-    const response = await fetch(`/api/bills/detail/${id}`, {
+    const response = await fetch(getApiUrl(`/api/bills/detail/${id}`), {
       headers: { ...getAuthHeader() }
     });
     
@@ -28,7 +34,7 @@ class RealApi {
   }
 
   async payBill(id: string): Promise<Bill> {
-    const response = await fetch(`/api/bills/pay/${id}`, {
+    const response = await fetch(getApiUrl(`/api/bills/pay/${id}`), {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -42,7 +48,7 @@ class RealApi {
 
   // Complaints
   async getComplaints(consumerNumber?: string): Promise<Complaint[]> {
-    const response = await fetch('/api/complaints', {
+    const response = await fetch(getApiUrl('/api/complaints'), {
       headers: { ...getAuthHeader() }
     });
     
@@ -51,7 +57,7 @@ class RealApi {
   }
 
   async fileComplaint(complaint: Omit<Complaint, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<Complaint> {
-    const response = await fetch('/api/complaints', {
+    const response = await fetch(getApiUrl('/api/complaints'), {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -67,7 +73,7 @@ class RealApi {
   }
 
   async updateComplaintStatus(id: string, status: Complaint['status'], note?: string): Promise<Complaint> {
-    const response = await fetch(`/api/complaints/${id}/status`, {
+    const response = await fetch(getApiUrl(`/api/complaints/${id}/status`), {
       method: 'PATCH',
       headers: { 
         'Content-Type': 'application/json',
@@ -83,7 +89,7 @@ class RealApi {
   }
 
   async assignComplaint(id: string, assignedTo: string, assignedTeam: string, note?: string): Promise<Complaint> {
-    const response = await fetch(`/api/complaints/${id}/assign`, {
+    const response = await fetch(getApiUrl(`/api/complaints/${id}/assign`), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ assignedTo, assignedTeam, note })
@@ -96,7 +102,7 @@ class RealApi {
   }
 
   async updateComplaintPriority(id: string, priority: string, note?: string): Promise<Complaint> {
-    const response = await fetch(`/api/complaints/${id}/priority`, {
+    const response = await fetch(getApiUrl(`/api/complaints/${id}/priority`), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ priority, note })
@@ -109,7 +115,7 @@ class RealApi {
   }
 
   async addComplaintNote(id: string, note: string): Promise<Complaint> {
-    const response = await fetch(`/api/complaints/${id}/notes`, {
+    const response = await fetch(getApiUrl(`/api/complaints/${id}/notes`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ note })
@@ -123,7 +129,7 @@ class RealApi {
 
   // Service Requests
   async createServiceRequest(data: any): Promise<any> {
-    const response = await fetch('/api/service-requests', {
+    const response = await fetch(getApiUrl('/api/service-requests'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data)
@@ -136,7 +142,7 @@ class RealApi {
   }
 
   async getMyServiceRequests(): Promise<any[]> {
-    const response = await fetch('/api/service-requests/my', {
+    const response = await fetch(getApiUrl('/api/service-requests/my'), {
       headers: { ...getAuthHeader() }
     });
     if (!response.ok) return [];
@@ -145,7 +151,7 @@ class RealApi {
 
   // Settings
   async getAdminSettings(): Promise<any> {
-    const response = await fetch('/api/settings', {
+    const response = await fetch(getApiUrl('/api/settings'), {
       headers: { ...getAuthHeader() }
     });
     if (!response.ok) throw new Error('Failed to fetch settings');
@@ -153,7 +159,7 @@ class RealApi {
   }
 
   async updateAdminSettings(data: any): Promise<any> {
-    const response = await fetch('/api/settings', {
+    const response = await fetch(getApiUrl('/api/settings'), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data)
@@ -163,7 +169,7 @@ class RealApi {
   }
 
   async runManualBackup(): Promise<any> {
-    const response = await fetch('/api/settings/backup/run', {
+    const response = await fetch(getApiUrl('/api/settings/backup/run'), {
       method: 'POST',
       headers: { ...getAuthHeader() }
     });
@@ -173,7 +179,7 @@ class RealApi {
 
   // Dashboard / Analytics Stats
   async getManagerStats(): Promise<{ revenue: number; totalUsers: number; pendingComplaints: number }> {
-    const response = await fetch('/api/stats/manager', {
+    const response = await fetch(getApiUrl('/api/stats/manager'), {
       headers: { ...getAuthHeader() }
     });
     
@@ -186,7 +192,7 @@ class RealApi {
 
   // Notifications
   async getNotifications(): Promise<any[]> {
-    const response = await fetch('/api/notifications', {
+    const response = await fetch(getApiUrl('/api/notifications'), {
       headers: { ...getAuthHeader() }
     });
     if (!response.ok) return [];
@@ -194,7 +200,7 @@ class RealApi {
   }
 
   async getUnreadNotificationCount(): Promise<number> {
-    const response = await fetch('/api/notifications/unread-count', {
+    const response = await fetch(getApiUrl('/api/notifications/unread-count'), {
       headers: { ...getAuthHeader() }
     });
     if (!response.ok) return 0;
@@ -203,7 +209,7 @@ class RealApi {
   }
 
   async markNotificationRead(id: string): Promise<any> {
-    const response = await fetch(`/api/notifications/${id}/read`, {
+    const response = await fetch(getApiUrl(`/api/notifications/${id}/read`), {
       method: 'PATCH',
       headers: { ...getAuthHeader() }
     });
@@ -212,7 +218,7 @@ class RealApi {
   }
 
   async markAllNotificationsRead(): Promise<any> {
-    const response = await fetch('/api/notifications/mark-all-read', {
+    const response = await fetch(getApiUrl('/api/notifications/mark-all-read'), {
       method: 'PATCH',
       headers: { ...getAuthHeader() }
     });
@@ -221,7 +227,7 @@ class RealApi {
   }
 
   async deleteNotification(id: string): Promise<any> {
-    const response = await fetch(`/api/notifications/${id}`, {
+    const response = await fetch(getApiUrl(`/api/notifications/${id}`), {
       method: 'DELETE',
       headers: { ...getAuthHeader() }
     });
@@ -230,7 +236,7 @@ class RealApi {
   }
 
   async clearAllNotifications(): Promise<any> {
-    const response = await fetch('/api/notifications/clear-all', {
+    const response = await fetch(getApiUrl('/api/notifications/clear-all'), {
       method: 'DELETE',
       headers: { ...getAuthHeader() }
     });
@@ -239,7 +245,7 @@ class RealApi {
   }
 
   async getDashboardStats(): Promise<any> {
-    const response = await fetch('/api/stats/dashboard', {
+    const response = await fetch(getApiUrl('/api/stats/dashboard'), {
       headers: { ...getAuthHeader() }
     });
     
@@ -267,7 +273,7 @@ class RealApi {
 
   // Profile & Auth
   async getMyProfile(): Promise<any> {
-    const response = await fetch('/api/auth/profile', {
+    const response = await fetch(getApiUrl('/api/auth/profile'), {
       headers: { ...getAuthHeader() }
     });
     if (!response.ok) {
@@ -278,7 +284,7 @@ class RealApi {
   }
 
   async updateMyProfile(data: { name?: string; phone?: string; address?: string }): Promise<any> {
-    const response = await fetch('/api/auth/profile', {
+    const response = await fetch(getApiUrl('/api/auth/profile'), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data)
@@ -291,7 +297,7 @@ class RealApi {
   }
 
   async changePassword(data: any): Promise<any> {
-    const response = await fetch('/api/auth/change-password', {
+    const response = await fetch(getApiUrl('/api/auth/change-password'), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data)
@@ -304,7 +310,7 @@ class RealApi {
   }
 
   async updateConsumerPreferences(data: any): Promise<any> {
-    const response = await fetch('/api/auth/preferences', {
+    const response = await fetch(getApiUrl('/api/auth/preferences'), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data)
@@ -317,7 +323,7 @@ class RealApi {
   }
 
   async requestDeactivateAccount(): Promise<any> {
-    const response = await fetch('/api/auth/deactivate', {
+    const response = await fetch(getApiUrl('/api/auth/deactivate'), {
       method: 'POST',
       headers: { ...getAuthHeader() }
     });
@@ -329,7 +335,7 @@ class RealApi {
   }
 
   async requestDeleteAccount(): Promise<any> {
-    const response = await fetch('/api/auth/delete-request', {
+    const response = await fetch(getApiUrl('/api/auth/delete-request'), {
       method: 'POST',
       headers: { ...getAuthHeader() }
     });
@@ -341,7 +347,7 @@ class RealApi {
   }
 
   async logoutAllDevices(): Promise<any> {
-    const response = await fetch('/api/auth/logout-all', {
+    const response = await fetch(getApiUrl('/api/auth/logout-all'), {
       method: 'PATCH',
       headers: { ...getAuthHeader() }
     });
@@ -354,13 +360,13 @@ class RealApi {
 
   // ── New Methods for Manager & Admin Messages ──────────────────────────────
   async getConsumersForManager(): Promise<User[]> {
-    const response = await fetch('/api/auth/users/consumers', { headers: getAuthHeader() });
+    const response = await fetch(getApiUrl('/api/auth/users/consumers'), { headers: getAuthHeader() });
     if (!response.ok) throw new Error('Failed to fetch consumers');
     return await response.json();
   }
 
   async sendMessageToAdmin(data: any): Promise<any> {
-    const response = await fetch('/api/messages', {
+    const response = await fetch(getApiUrl('/api/messages'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data)
@@ -373,13 +379,13 @@ class RealApi {
   }
 
   async getAdminMessages(): Promise<any[]> {
-    const response = await fetch('/api/messages/admin', { headers: getAuthHeader() });
+    const response = await fetch(getApiUrl('/api/messages/admin'), { headers: getAuthHeader() });
     if (!response.ok) throw new Error('Failed to fetch messages');
     return await response.json();
   }
 
   async markMessageRead(id: string): Promise<any> {
-    const response = await fetch(`/api/messages/${id}/read`, {
+    const response = await fetch(getApiUrl(`/api/messages/${id}/read`), {
       method: 'PATCH',
       headers: getAuthHeader()
     });
@@ -388,7 +394,7 @@ class RealApi {
   }
 
   async closeMessage(id: string): Promise<any> {
-    const response = await fetch(`/api/messages/${id}/close`, {
+    const response = await fetch(getApiUrl(`/api/messages/${id}/close`), {
       method: 'PATCH',
       headers: getAuthHeader()
     });
@@ -398,7 +404,7 @@ class RealApi {
 
   // ── Two-Way Conversation System ────────────────────────────────────────
   async createConversation(data: { subject: string; message: string; priority?: string; category?: string }): Promise<any> {
-    const response = await fetch('/api/messages/conversations', {
+    const response = await fetch(getApiUrl('/api/messages/conversations'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data),
@@ -411,13 +417,13 @@ class RealApi {
   }
 
   async getConversations(): Promise<any[]> {
-    const response = await fetch('/api/messages/conversations', { headers: getAuthHeader() });
+    const response = await fetch(getApiUrl('/api/messages/conversations'), { headers: getAuthHeader() });
     if (!response.ok) throw new Error('Failed to fetch conversations');
     return await response.json();
   }
 
   async getConversationById(id: string): Promise<{ conversation: any; messages: any[] }> {
-    const response = await fetch(`/api/messages/conversations/${id}`, { headers: getAuthHeader() });
+    const response = await fetch(getApiUrl(`/api/messages/conversations/${id}`), { headers: getAuthHeader() });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to fetch conversation');
@@ -426,7 +432,7 @@ class RealApi {
   }
 
   async replyToConversation(id: string, message: string): Promise<any> {
-    const response = await fetch(`/api/messages/conversations/${id}/reply`, {
+    const response = await fetch(getApiUrl(`/api/messages/conversations/${id}/reply`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ message }),
@@ -439,7 +445,7 @@ class RealApi {
   }
 
   async markConversationRead(id: string): Promise<any> {
-    const response = await fetch(`/api/messages/conversations/${id}/read`, {
+    const response = await fetch(getApiUrl(`/api/messages/conversations/${id}/read`), {
       method: 'PATCH',
       headers: getAuthHeader(),
     });
@@ -448,7 +454,7 @@ class RealApi {
   }
 
   async closeConversation(id: string): Promise<any> {
-    const response = await fetch(`/api/messages/conversations/${id}/close`, {
+    const response = await fetch(getApiUrl(`/api/messages/conversations/${id}/close`), {
       method: 'PATCH',
       headers: getAuthHeader(),
     });
@@ -462,7 +468,7 @@ class RealApi {
   async getManagerComplaints(): Promise<Complaint[]> {
     // Falls back to getComplaints which already gets manager complaints in the backend stats/complaints flow.
     // Let's assume there is /api/complaints/manager or /api/complaints for manager
-    const response = await fetch('/api/complaints', { headers: getAuthHeader() });
+    const response = await fetch(getApiUrl('/api/complaints'), { headers: getAuthHeader() });
     if (!response.ok) throw new Error('Failed to fetch complaints');
     return await response.json();
   }
