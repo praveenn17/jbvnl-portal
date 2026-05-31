@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { Bill, Complaint } from '../../types';
 import {
@@ -15,90 +15,65 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-
-// ── Mock data ────────────────────────────────────────────────────────────────
-
-const sixMonthBills = [
-  { month: 'Oct', amount: 1650, units: 165 },
-  { month: 'Nov', amount: 1920, units: 192 },
-  { month: 'Dec', amount: 2340, units: 234 },
-  { month: 'Jan', amount: 2100, units: 210 },
-  { month: 'Feb', amount: 1890, units: 189 },
-  { month: 'Mar', amount: 2450, units: 245 },
-];
-
-const INITIAL_BILLS: Bill[] = [
-  {
-    id: '1',
-    consumerNumber: 'JBVNL001',
-    billNumber: 'BILL001',
-    billingPeriod: 'March 2024',
-    dueDate: '2024-04-15',
-    amount: 2450,
-    status: 'pending',
-    units: 245,
-    createdAt: '2024-03-01',
-  },
-  {
-    id: '2',
-    consumerNumber: 'JBVNL001',
-    billNumber: 'BILL002',
-    billingPeriod: 'February 2024',
-    dueDate: '2024-03-15',
-    amount: 1890,
-    status: 'paid',
-    units: 189,
-    createdAt: '2024-02-01',
-  },
-];
-
-const INITIAL_COMPLAINTS: Complaint[] = [
-  {
-    id: '1',
-    consumerNumber: 'JBVNL001',
-    title: 'Billing Discrepancy',
-    description: 'Units calculation seems incorrect for this month',
-    category: 'billing',
-    status: 'in_progress',
-    priority: 'medium',
-    createdAt: '2024-03-10',
-    updatedAt: '2024-03-12',
-  },
-];
+import { mockApi } from '../../lib/mockApi';
+import { generateMockBills, deriveBillAnalytics } from '@/pages/consumer/SixMonthsDetails';
 
 // ── Component ────────────────────────────────────────────────────────────────
-
-import { mockApi } from '../../lib/mockApi';
 
 const ConsumerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [bills, setBills] = useState<Bill[]>([]);
+  const [bills,      setBills]      = useState<Bill[]>([]);
+  const [sixMonthDs, setSixMonthDs] = useState<Bill[]>([]); // shared 6-month dataset
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats,      setStats]      = useState<any>(null);
+  const [loading,    setLoading]    = useState(true);
 
   React.useEffect(() => {
     const fetchData = async () => {
-      if (user?.consumerNumber || (user as any)?.consumerNumber) {
-        const cNum = user.consumerNumber || (user as any).consumerNumber;
+      const cNum = user?.consumerNumber || (user as any)?.consumerNumber || '0000';
+      try {
         const [billsData, complaintsData, statsData] = await Promise.all([
           mockApi.getBills(cNum),
           mockApi.getComplaints(cNum),
-          mockApi.getDashboardStats().catch(() => null)
+          mockApi.getDashboardStats().catch(() => null),
         ]);
         setBills(billsData);
         setComplaints(complaintsData);
         setStats(statsData);
+
+        // Build the shared 6-month dataset (same logic as SixMonthsDetails)
+        const sorted = billsData.sort(
+          (a: Bill, b: Bill) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        );
+        const recent = sorted.slice(-6);
+        setSixMonthDs(recent.length > 0 ? recent : generateMockBills(cNum));
+      } catch {
+        // Fallback to mock data on error
+        const mock = generateMockBills(cNum);
+        setBills(mock);
+        setSixMonthDs(mock);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchData();
   }, [user]);
 
-  const pendingBill = bills.find(b => b.status === 'pending');
-  const hasPendingBills = !!pendingBill;
+  // ── Chart data: map 6-month dataset to chart format ────────────────────────
+  const chartData = sixMonthDs.map(b => ({
+    month:  new Date(b.dueDate).toLocaleString('en-IN', { month: 'short' }),
+    amount: b.amount,
+    units:  b.units,
+  }));
+
+  // ── Analytics: single source of truth ─────────────────────────────────────
+  const analytics = deriveBillAnalytics(sixMonthDs);
+
+  // Latest bill (most recent, by sorted order)
+  const latestBill = sixMonthDs.length > 0 ? sixMonthDs[sixMonthDs.length - 1] : null;
+
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -193,17 +168,18 @@ const ConsumerDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             {loading ? (
-               <div className="animate-pulse h-8 bg-muted rounded w-1/2"></div>
+             <div className="animate-pulse h-8 bg-muted rounded w-1/2"></div>
             ) : (() => {
-              const amt = stats?.currentBillAmount || (pendingBill ? pendingBill.amount : (bills[0]?.amount || 0));
-              const billStatus = stats?.latestBillStatus || (pendingBill ? 'pending' : (bills[0]?.status || null));
+              // Use latest bill from shared 6-month dataset as source of truth
+              const amt = latestBill?.amount ?? 0;
+              const billStatus = latestBill?.status ?? 'paid';
               return (
                 <>
                   <div className="text-2xl font-bold text-primary">
-                    {amt ? `₹${amt.toLocaleString()}` : 'No Bills'}
+                    ₹{amt.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {billStatus === 'pending' || billStatus === 'overdue' ? 'Payment due' : (billStatus === 'paid' ? 'Latest paid bill' : 'No bills yet')}
+                    {billStatus === 'pending' || billStatus === 'overdue' ? 'Payment due' : 'Latest paid bill'}
                   </p>
                 </>
               );
@@ -220,13 +196,11 @@ const ConsumerDashboard: React.FC = () => {
              {loading ? (
                <div className="animate-pulse h-8 bg-muted rounded w-1/2"></div>
             ) : (() => {
-              const units = stats?.unitsConsumed || (pendingBill ? pendingBill.units : (bills[0]?.units || 0));
+              const units = latestBill?.units ?? analytics.averageUnits;
               return (
                 <>
-                  <div className="text-2xl font-bold">{units ? `${units} kWh` : 'No Data'}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Latest reading
-                  </p>
+                  <div className="text-2xl font-bold">{units} kWh</div>
+                  <p className="text-xs text-muted-foreground">Latest month reading</p>
                 </>
               );
             })()}
@@ -264,14 +238,19 @@ const ConsumerDashboard: React.FC = () => {
             {loading ? (
                <div className="animate-pulse h-8 bg-muted rounded w-2/3"></div>
             ) : (() => {
-              const pStatus = stats?.paymentStatus || (hasPendingBills ? 'Pending' : (bills.length > 0 ? 'Up to Date' : 'No Data'));
+              // Payment status based on latest bill from shared dataset
+              const pStatus = latestBill
+                ? (latestBill.status === 'paid' ? 'Up to Date' : 'Payment Due')
+                : 'Up to Date';
               return (
                 <>
-                  <div className={`text-2xl font-bold ${pStatus === 'Pending' ? 'text-yellow-600' : (pStatus === 'Up to Date' ? 'text-green-600' : 'text-muted-foreground')}`}>
+                  <div className={`text-2xl font-bold ${
+                    pStatus === 'Payment Due' ? 'text-yellow-600' : 'text-green-600'
+                  }`}>
                     {pStatus}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {pStatus === 'Pending' ? 'Payment due' : (pStatus === 'Up to Date' ? 'All bills paid' : 'No history')}
+                    {pStatus === 'Payment Due' ? 'Payment required' : 'All bills paid'}
                   </p>
                 </>
               );
@@ -438,11 +417,11 @@ const ConsumerDashboard: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Monthly Bill Amount (₹)</CardTitle>
-                <CardDescription>Oct 2023 – Mar 2024</CardDescription>
+                <CardDescription>Last 6 months</CardDescription>
               </CardHeader>
               <CardContent className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sixMonthBills} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
                     <YAxis tick={{ fontSize: 12, fill: 'hsl(215, 20%, 65%)' }} />
@@ -465,7 +444,7 @@ const ConsumerDashboard: React.FC = () => {
               </CardHeader>
               <CardContent className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={sixMonthBills} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="unitsGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -493,13 +472,13 @@ const ConsumerDashboard: React.FC = () => {
             </Card>
           </div>
 
-          {/* Summary stats row */}
+          {/* Summary stats row — driven by shared analytics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Avg Monthly Bill', value: `₹${Math.round(sixMonthBills.reduce((s, b) => s + b.amount, 0) / sixMonthBills.length).toLocaleString()}` },
-              { label: 'Avg Units/Month', value: `${Math.round(sixMonthBills.reduce((s, b) => s + b.units, 0) / sixMonthBills.length)} kWh` },
-              { label: 'Highest Bill', value: `₹${Math.max(...sixMonthBills.map(b => b.amount)).toLocaleString()}` },
-              { label: 'Lowest Bill', value: `₹${Math.min(...sixMonthBills.map(b => b.amount)).toLocaleString()}` },
+              { label: 'Avg Monthly Bill',  value: `₹${analytics.averageAmount.toLocaleString()}` },
+              { label: 'Avg Units/Month',   value: `${analytics.averageUnits} kWh` },
+              { label: 'Highest Bill',      value: `₹${analytics.highestBill.amount.toLocaleString()}` },
+              { label: 'Lowest Bill',       value: `₹${analytics.lowestBill.amount.toLocaleString()}` },
             ].map(stat => (
               <Card key={stat.label}>
                 <CardContent className="pt-4 pb-4">
@@ -507,7 +486,7 @@ const ConsumerDashboard: React.FC = () => {
                   <p className="text-xl font-bold text-primary mt-1">{stat.value}</p>
                 </CardContent>
               </Card>
-            ))}
+            ))}}
           </div>
         </TabsContent>
 

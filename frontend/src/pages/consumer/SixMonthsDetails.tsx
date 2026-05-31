@@ -1,18 +1,127 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, Zap, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft, Calendar, Zap, TrendingUp, TrendingDown, Loader2,
+  Download, CreditCard,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockApi } from '@/lib/mockApi';
 import { Bill } from '@/types';
 
+// ── Shared mock bill generator ─────────────────────────────────────────────────
+// Exported so ConsumerDashboard can use the exact same dataset for analytics.
+export const generateMockBills = (consumerNumber: string): Bill[] => {
+  const seed = consumerNumber
+    ? consumerNumber.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+    : 42;
+
+  const statuses: Array<'paid' | 'pending' | 'overdue'> = [
+    'paid', 'paid', 'paid', 'paid', 'pending', 'paid',
+  ];
+
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const monthOffset = 5 - i; // oldest first
+    const date = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+    const monthName = date.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const baseUnits = 200 + ((seed + i * 37) % 220);
+    const units = Math.round(baseUnits);
+    const rate = 6.5;
+    const amount = Math.round(units * rate + 80);
+    const dueDate = new Date(date.getFullYear(), date.getMonth() + 1, 15);
+    return {
+      _id: `mock-${consumerNumber}-${i}`,
+      id: `mock-${consumerNumber}-${i}`,
+      billNumber: `JBVNL-${consumerNumber}-${String(date.getMonth() + 1).padStart(2, '0')}${date.getFullYear()}`,
+      consumerNumber,
+      billingPeriod: monthName,
+      dueDate: dueDate.toISOString(),
+      amount,
+      units,
+      status: statuses[i],
+      createdAt: date.toISOString(),
+    } as unknown as Bill;
+  });
+};
+
+// ── Shared analytics derivation ────────────────────────────────────────────────
+// Single source of truth — used by both this page and ConsumerDashboard.
+export const deriveBillAnalytics = (bills: Bill[]) => {
+  const totalUnits = bills.reduce((s, b) => s + b.units, 0);
+  const totalAmount = bills.reduce((s, b) => s + b.amount, 0);
+  const averageUnits = bills.length > 0 ? Math.round(totalUnits / bills.length) : 0;
+  const averageAmount = bills.length > 0 ? Math.round(totalAmount / bills.length) : 0;
+
+  let highestUsage = { month: 'N/A', units: 0 };
+  let lowestUsage  = { month: 'N/A', units: Infinity };
+  let highestBill  = { month: 'N/A', amount: 0 };
+  let lowestBill   = { month: 'N/A', amount: Infinity };
+
+  bills.forEach(b => {
+    if (b.units > highestUsage.units) highestUsage = { month: b.billingPeriod, units: b.units };
+    if (b.units < lowestUsage.units)  lowestUsage  = { month: b.billingPeriod, units: b.units };
+    if (b.amount > highestBill.amount) highestBill = { month: b.billingPeriod, amount: b.amount };
+    if (b.amount < lowestBill.amount)  lowestBill  = { month: b.billingPeriod, amount: b.amount };
+  });
+
+  if (lowestUsage.units  === Infinity) lowestUsage.units  = 0;
+  if (lowestBill.amount  === Infinity) lowestBill.amount  = 0;
+
+  const variance        = highestUsage.units - lowestUsage.units;
+  const variancePercent = lowestUsage.units > 0 ? Math.round((variance / lowestUsage.units) * 100) : 0;
+  const ratePerUnit     = averageUnits > 0 ? (averageAmount / averageUnits) : 0;
+
+  return {
+    totalUnits, totalAmount, averageUnits, averageAmount,
+    highestUsage, lowestUsage, highestBill, lowestBill,
+    variance, variancePercent, ratePerUnit,
+  };
+};
+
+// ── Mock PDF generator ─────────────────────────────────────────────────────────
+const generateMockPdf = (bill: {
+  billNumber: string; billingPeriod: string; amount: number;
+  units: number; status: string; consumerNumber: string;
+}) => {
+  const content = `
+JHARKHAND BID VIDYUT VITRAN NIGAM LIMITED (JBVNL)
+=======================================================
+ELECTRICITY BILL
+
+Bill Number   : ${bill.billNumber}
+Billing Period: ${bill.billingPeriod}
+Consumer No.  : ${bill.consumerNumber}
+Due Date      : N/A
+Units Consumed: ${bill.units} kWh
+Bill Amount   : Rs. ${bill.amount.toLocaleString()}
+Status        : ${bill.status.toUpperCase()}
+
+Fixed Charge  : Rs. 80
+Energy Charge : Rs. ${(bill.amount - 80).toLocaleString()} (@ Rs. ${((bill.amount - 80) / bill.units).toFixed(2)}/unit)
+
+=======================================================
+This is a computer-generated bill.
+For queries contact: krpraveen2212@gmail.com
+`;
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `Bill_${bill.billNumber}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// ── Component ──────────────────────────────────────────────────────────────────
 const SixMonthsDetails: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  
-  const [bills, setBills] = useState<Bill[]>([]);
+  const { user }  = useAuth();
+
+  const [bills,   setBills]   = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,16 +129,15 @@ const SixMonthsDetails: React.FC = () => {
       try {
         const cNum = user?.consumerNumber || (user as any)?.consumerNumber;
         if (cNum) {
-          const fetchedBills = await mockApi.getBills(cNum);
-          // Sort by date ascending to easily calculate trends, 
-          // or keep them descending but handle carefully.
-          // Let's sort ascending for accurate trend calculation (oldest to newest)
-          const sorted = fetchedBills.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-          // Limit to exactly 6 months if there are more
-          setBills(sorted.slice(-6));
+          const fetched = await mockApi.getBills(cNum);
+          const sorted  = fetched.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+          const recent  = sorted.slice(-6);
+          setBills(recent.length > 0 ? recent : generateMockBills(cNum));
+        } else {
+          setBills(generateMockBills('0000'));
         }
-      } catch (err) {
-        console.error('Failed to fetch bills for 6-months overview:', err);
+      } catch {
+        setBills(generateMockBills(user?.consumerNumber || '0000'));
       } finally {
         setLoading(false);
       }
@@ -37,235 +145,236 @@ const SixMonthsDetails: React.FC = () => {
     fetchBills();
   }, [user]);
 
+  // ── All analytics from single source ──────────────────────────────────────
+  const {
+    totalUnits, totalAmount, averageUnits, averageAmount,
+    highestUsage, lowestUsage, highestBill, lowestBill,
+    variance, variancePercent, ratePerUnit,
+  } = deriveBillAnalytics(bills);
+
+  // Monthly breakdown: sorted newest-first with trend vs previous month
+  const monthlyData = bills.map((bill, index) => ({
+    id:     bill._id || bill.id,
+    month:  bill.billingPeriod,
+    units:  bill.units,
+    amount: bill.amount,
+    status: bill.status,
+    dueDate: bill.dueDate,
+    billNumber: bill.billNumber,
+    consumerNumber: bill.consumerNumber,
+    trend: index > 0 && bill.units > bills[index - 1].units ? 'up' : 'down',
+  })).reverse();
+
   const getBillStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'paid':    return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+      case 'pending': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+      case 'overdue': return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+      default:        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
   };
 
-  const totalUnits = bills.reduce((sum, b) => sum + b.units, 0);
-  const totalAmount = bills.reduce((sum, b) => sum + b.amount, 0);
-  const averageUnits = bills.length > 0 ? Math.round(totalUnits / bills.length) : 0;
-  const averageAmount = bills.length > 0 ? Math.round(totalAmount / bills.length) : 0;
+  const isUnpaid = (status: string) =>
+    status === 'pending' || status === 'overdue';
 
-  // Compute trend compared to the previous month
-  const monthlyData = bills.map((bill, index) => {
-    let trend = 'down'; // Default
-    if (index > 0) {
-      if (bill.units > bills[index - 1].units) {
-        trend = 'up';
-      }
-    }
-    return {
-      id: bill._id || bill.id,
-      month: bill.billingPeriod,
-      units: bill.units,
-      amount: bill.amount,
-      status: bill.status,
-      trend,
-    };
-  }).reverse(); // Reverse so newest is on top
+  const handleDownload = (data: typeof monthlyData[0]) => {
+    generateMockPdf({
+      billNumber:     data.billNumber,
+      billingPeriod:  data.month,
+      amount:         data.amount,
+      units:          data.units,
+      status:         data.status,
+      consumerNumber: data.consumerNumber,
+    });
+  };
 
-  // Find insights
-  let highestUsage = { month: 'N/A', units: 0 };
-  let lowestUsage = { month: 'N/A', units: Infinity };
-  let highestBill = { month: 'N/A', amount: 0 };
-  let lowestBill = { month: 'N/A', amount: Infinity };
+  const handlePayNow = (data: typeof monthlyData[0]) => {
+    navigate('/consumer/payment', {
+      state: {
+        billId: data.id,
+        billNumber: data.billNumber,
+        billingPeriod: data.month,
+        amount: data.amount,
+        units: data.units,
+        status: data.status,
+        dueDate: data.dueDate,
+        consumerNumber: data.consumerNumber,
+      },
+    });
+  };
 
-  bills.forEach(b => {
-    if (b.units > highestUsage.units) highestUsage = { month: b.billingPeriod, units: b.units };
-    if (b.units < lowestUsage.units) lowestUsage = { month: b.billingPeriod, units: b.units };
-    if (b.amount > highestBill.amount) highestBill = { month: b.billingPeriod, amount: b.amount };
-    if (b.amount < lowestBill.amount) lowestBill = { month: b.billingPeriod, amount: b.amount };
-  });
-
-  if (lowestUsage.units === Infinity) lowestUsage.units = 0;
-  if (lowestBill.amount === Infinity) lowestBill.amount = 0;
-
-  const variance = highestUsage.units - lowestUsage.units;
-  const variancePercent = lowestUsage.units > 0 ? Math.round((variance / lowestUsage.units) * 100) : 0;
+  // ── Summary stat cards config ──────────────────────────────────────────────
+  const summaryCards = [
+    { label: 'Total Units Consumed', value: `${totalUnits} kWh`,        sub: `Last ${bills.length} months`, gradient: 'from-blue-600 to-blue-700' },
+    { label: 'Total Amount Billed',  value: `₹${totalAmount.toLocaleString()}`, sub: 'Billed amount',      gradient: 'from-emerald-600 to-emerald-700' },
+    { label: 'Average Units / Month',value: `${averageUnits} kWh`,       sub: 'Monthly average',           gradient: 'from-violet-600 to-violet-700' },
+    { label: 'Average Bill / Month', value: `₹${averageAmount.toLocaleString()}`, sub: 'Monthly average',  gradient: 'from-orange-500 to-orange-600' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,_hsl(215,60%,10%)_0%,_hsl(220,40%,6%)_40%,_hsl(225,35%,4%)_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,_hsl(215,60%,10%)_0%,_hsl(220,40%,6%)_40%,_hsl(225,35%,4%)_100%)] p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
+
+        {/* ── Header ────────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => navigate(-1)}>
+          <Button
+            variant="outline"
+            className="border-white/20 text-white/80 hover:bg-white/10 hover:text-white bg-white/5"
+            onClick={() => navigate(-1)}
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-primary">6 Months Overview</h1>
-            <p className="text-muted-foreground">Detailed consumption and billing history for {user?.name}</p>
+            <h1 className="text-3xl font-bold text-white">6 Months Overview</h1>
+            <p className="text-white/60 text-sm mt-0.5">
+              Detailed consumption and billing history for <span className="text-white/80 font-medium">{user?.name}</span>
+            </p>
           </div>
         </div>
 
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-white/60" />
           </div>
-        ) : bills.length === 0 ? (
-          <Card>
-            <CardContent className="py-20 text-center">
-              <h2 className="text-2xl font-semibold mb-2">No Data Available</h2>
-              <p className="text-muted-foreground">We couldn't find any bill history for your account.</p>
-            </CardContent>
-          </Card>
         ) : (
           <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium opacity-90">Total Units Consumed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalUnits}</div>
-                  <p className="text-xs opacity-80">Last {bills.length} months</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium opacity-90">Total Amount</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">₹{totalAmount.toLocaleString()}</div>
-                  <p className="text-xs opacity-80">Billed amount</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium opacity-90">Average Units</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{averageUnits}</div>
-                  <p className="text-xs opacity-80">Per month</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium opacity-90">Average Bill</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">₹{averageAmount}</div>
-                  <p className="text-xs opacity-80">Per month</p>
-                </CardContent>
-              </Card>
+            {/* ── Summary Cards ────────────────────────────────────────────── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {summaryCards.map(card => (
+                <div
+                  key={card.label}
+                  className={`bg-gradient-to-br ${card.gradient} rounded-xl p-5 text-white shadow-lg`}
+                >
+                  <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-1">{card.label}</p>
+                  <p className="text-2xl font-bold">{card.value}</p>
+                  <p className="text-xs text-white/60 mt-1">{card.sub}</p>
+                </div>
+              ))}
             </div>
 
-            {/* Monthly Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Monthly Breakdown
-                </CardTitle>
-                <CardDescription>Detailed month-wise consumption and billing data</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {monthlyData.map((data, index) => (
-                    <div 
-                      key={index}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          {data.trend === 'up' ? (
-                            <TrendingUp className="h-4 w-4 text-red-500" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-green-500" />
-                          )}
-                          <div>
-                            <p className="font-semibold">{data.month}</p>
-                            <p className="text-sm text-muted-foreground">Billing Period</p>
-                          </div>
-                        </div>
-                      </div>
+            {/* ── Monthly Breakdown ─────────────────────────────────────────── */}
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-white/70" />
+                  <h2 className="text-lg font-semibold text-white">Monthly Breakdown</h2>
+                </div>
+                <p className="text-sm text-white/50 mt-0.5">Detailed month-wise consumption and billing data</p>
+              </div>
 
-                      <div className="grid grid-cols-3 gap-8 text-center">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Units</p>
-                          <p className="text-lg font-semibold flex items-center justify-center gap-1">
-                            <Zap className="h-4 w-4 text-yellow-500" />
-                            {data.units}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Amount</p>
-                          <p className="text-lg font-semibold text-primary">₹{data.amount.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Status</p>
-                          <Badge className={getBillStatusColor(data.status)}>{data.status.toUpperCase()}</Badge>
-                        </div>
+              <div className="divide-y divide-white/5">
+                {monthlyData.map((data, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 py-4 hover:bg-white/[0.04] transition-colors"
+                  >
+                    {/* Month + trend */}
+                    <div className="flex items-center gap-3 min-w-[160px]">
+                      {data.trend === 'up' ? (
+                        <TrendingUp className="h-4 w-4 text-red-400 shrink-0" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-emerald-400 shrink-0" />
+                      )}
+                      <div>
+                        <p className="font-semibold text-white text-sm">{data.month}</p>
+                        <p className="text-xs text-white/40">Billing Period</p>
                       </div>
+                    </div>
 
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => navigate(`/consumer/bill-details/${data.id || index + 1}`)}
-                      >
-                        View Details
-                      </Button>
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-6 text-center flex-1">
+                      <div>
+                        <p className="text-xs text-white/40 mb-0.5">Units</p>
+                        <p className="font-semibold text-white flex items-center justify-center gap-1">
+                          <Zap className="h-3.5 w-3.5 text-yellow-400" />
+                          {data.units}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-white/40 mb-0.5">Amount</p>
+                        <p className="font-semibold text-blue-300">₹{data.amount.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-white/40 mb-0.5">Status</p>
+                        <Badge className={getBillStatusColor(data.status)}>
+                          {data.status.charAt(0).toUpperCase() + data.status.slice(1)}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Action button */}
+                    <div className="flex justify-end">
+                      {isUnpaid(data.status) ? (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 gap-1.5"
+                          onClick={() => handlePayNow(data)}
+                        >
+                          <CreditCard className="h-3.5 w-3.5" />
+                          Pay Now
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-white/20 text-white/80 hover:bg-white/10 hover:text-white bg-white/5 gap-1.5"
+                          onClick={() => handleDownload(data)}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Download Bill
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Consumption Insights ──────────────────────────────────────── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Usage Trends */}
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-yellow-400" />
+                  Usage Trends
+                </h3>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Highest Usage', value: `${highestUsage.month} — ${highestUsage.units} kWh` },
+                    { label: 'Lowest Usage',  value: `${lowestUsage.month} — ${lowestUsage.units} kWh` },
+                    { label: 'Variance',       value: `${variance} kWh  (${variancePercent}% swing)` },
+                    { label: 'Avg Rate',       value: `₹${ratePerUnit.toFixed(2)} / unit` },
+                  ].map(row => (
+                    <div key={row.label} className="flex justify-between items-center">
+                      <span className="text-sm text-white/50">{row.label}</span>
+                      <span className="text-sm font-medium text-white/90">{row.value}</span>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Consumption Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Consumption Insights</CardTitle>
-                <CardDescription>Analysis of your electricity usage patterns</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-semibold">Usage Trends</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Highest Usage:</span>
-                        <span className="font-medium">{highestUsage.month} ({highestUsage.units} units)</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Lowest Usage:</span>
-                        <span className="font-medium">{lowestUsage.month} ({lowestUsage.units} units)</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Variance:</span>
-                        <span className="font-medium">{variance} units ({variancePercent}% difference)</span>
-                      </div>
+              {/* Cost Analysis */}
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-400" />
+                  Cost Analysis
+                </h3>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Highest Bill', value: `₹${highestBill.amount.toLocaleString()} — ${highestBill.month}` },
+                    { label: 'Lowest Bill',  value: `₹${lowestBill.amount.toLocaleString()} — ${lowestBill.month}` },
+                    { label: 'Total Paid',   value: `₹${totalAmount.toLocaleString()}` },
+                    { label: 'Avg Monthly',  value: `₹${averageAmount.toLocaleString()}` },
+                  ].map(row => (
+                    <div key={row.label} className="flex justify-between items-center">
+                      <span className="text-sm text-white/50">{row.label}</span>
+                      <span className="text-sm font-medium text-white/90">{row.value}</span>
                     </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="font-semibold">Cost Analysis</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Highest Bill:</span>
-                        <span className="font-medium">₹{highestBill.amount.toLocaleString()} ({highestBill.month})</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Lowest Bill:</span>
-                        <span className="font-medium">₹{lowestBill.amount.toLocaleString()} ({lowestBill.month})</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Rate per Unit:</span>
-                        <span className="font-medium">₹{(averageUnits > 0 ? (averageAmount / averageUnits) : 0).toFixed(2)} (Average)</span>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </>
         )}
       </div>

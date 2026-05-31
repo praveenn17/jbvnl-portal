@@ -49,10 +49,20 @@ const ConsumerProfile: React.FC = () => {
   }, []);
 
   const handleSave = async () => {
+    // Validate phone number before saving
+    const phone = editedProfile.phone.trim();
+    if (phone && !/^[0-9]{10}$/.test(phone)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Phone number must be exactly 10 digits (numbers only, no spaces or country codes).",
+        variant: "destructive"
+      });
+      return;
+    }
     try {
       await mockApi.updateMyProfile({
         name: editedProfile.name,
-        phone: editedProfile.phone,
+        phone: phone || undefined,
         address: editedProfile.address
       });
       setProfile(editedProfile);
@@ -131,11 +141,20 @@ const ConsumerProfile: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 {isEditing ? (
-                  <Input
-                    id="phone"
-                    value={editedProfile.phone}
-                    onChange={(e) => setEditedProfile({...editedProfile, phone: e.target.value})}
-                  />
+                  <>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={editedProfile.phone}
+                      maxLength={10}
+                      onChange={(e) => setEditedProfile({...editedProfile, phone: e.target.value.replace(/\D/g, '')})}
+                    />
+                    {editedProfile.phone.length > 0 && !/^[0-9]{10}$/.test(editedProfile.phone) && (
+                      <p className="text-xs text-red-500">
+                        Phone must be exactly 10 digits ({editedProfile.phone.length} entered)
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <p className="text-lg">{profile.phone}</p>
                 )}

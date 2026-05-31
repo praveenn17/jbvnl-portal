@@ -62,6 +62,28 @@ const RegisterTab: React.FC = () => {
     department: '',
   });
 
+  // ── Inline field-level error state ─────────────────────────────────────────
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [consumerNumberError, setConsumerNumberError] = useState<string | null>(null);
+
+  // ── Validation helpers ─────────────────────────────────────────────────────
+  const PHONE_REGEX = /^[0-9]{10}$/;
+  const CONSUMER_NUMBER_REGEX = /^[0-9]{4}$/;
+
+  const validatePhone = (value: string): string | null => {
+    if (!value) return null; // required check handled separately
+    if (!/^[0-9]+$/.test(value)) return 'Phone number must contain digits only (no letters, spaces, or symbols).';
+    if (value.length !== 10) return `Phone number must be exactly 10 digits (${value.length} entered).`;
+    return null;
+  };
+
+  const validateConsumerNumber = (value: string): string | null => {
+    if (!value) return null;
+    if (!/^[0-9]+$/.test(value)) return 'Consumer number must contain digits only.';
+    if (value.length !== 4) return `Consumer number must be exactly 4 digits (${value.length} entered).`;
+    return null;
+  };
+
   // ── Client-side validation ─────────────────────────────────────────────────
   const validateForm = (): string | null => {
     const { name, email, password, confirmPassword, role, consumerNumber, address, employeeId, department, phone } = registerData;
@@ -70,8 +92,16 @@ const RegisterTab: React.FC = () => {
       return 'Please fill in all required fields.';
     }
 
+    // Strict phone validation
+    if (!PHONE_REGEX.test(phone.trim())) {
+      return 'Phone number must be exactly 10 digits (numbers only, no spaces or symbols).';
+    }
+
     if (role === 'consumer') {
       if (!consumerNumber?.trim()) return 'Consumer number is required for consumers.';
+      if (!CONSUMER_NUMBER_REGEX.test(consumerNumber.trim())) {
+        return 'Consumer number must be exactly 4 digits (numbers only).';
+      }
       if (!address?.trim()) return 'Address is required for consumers.';
     }
 
@@ -309,37 +339,74 @@ const RegisterTab: React.FC = () => {
 
           {/* Phone (Always visible) */}
           <div className="space-y-2">
-            <Label htmlFor="register-phone">Phone Number</Label>
+            <Label htmlFor="register-phone">Phone Number <span className="text-muted-foreground text-xs">(10 digits)</span></Label>
             <div className="relative">
               <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="register-phone"
                 type="tel"
-                placeholder="Enter your phone number"
-                className="pl-10"
+                placeholder="Enter 10-digit phone number"
+                className={`pl-10 ${phoneError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 value={registerData.phone}
-                onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                maxLength={10}
+                onChange={(e) => {
+                  // Strip non-digit characters on input
+                  const digits = e.target.value.replace(/\D/g, '');
+                  setRegisterData({ ...registerData, phone: digits });
+                  setPhoneError(validatePhone(digits));
+                }}
+                onBlur={() => setPhoneError(validatePhone(registerData.phone))}
                 required
               />
             </div>
+            {phoneError && (
+              <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                <XCircle className="h-3.5 w-3.5 shrink-0" />
+                {phoneError}
+              </p>
+            )}
+            {!phoneError && registerData.phone.length === 10 && (
+              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                Valid phone number
+              </p>
+            )}
           </div>
 
           {/* Conditional Fields: Consumer */}
           {registerData.role === 'consumer' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="register-consumer-number">Consumer Number</Label>
+                <Label htmlFor="register-consumer-number">Consumer Number <span className="text-muted-foreground text-xs">(4 digits)</span></Label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="register-consumer-number"
                     type="text"
-                    placeholder="Enter consumer number"
-                    className="pl-10"
+                    placeholder="Enter 4-digit consumer number"
+                    className={`pl-10 ${consumerNumberError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                     value={registerData.consumerNumber}
-                    onChange={(e) => setRegisterData({ ...registerData, consumerNumber: e.target.value })}
+                    maxLength={4}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      setRegisterData({ ...registerData, consumerNumber: digits });
+                      setConsumerNumberError(validateConsumerNumber(digits));
+                    }}
+                    onBlur={() => setConsumerNumberError(validateConsumerNumber(registerData.consumerNumber))}
                   />
                 </div>
+                {consumerNumberError && (
+                  <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                    <XCircle className="h-3.5 w-3.5 shrink-0" />
+                    {consumerNumberError}
+                  </p>
+                )}
+                {!consumerNumberError && registerData.consumerNumber.length === 4 && (
+                  <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    Valid consumer number
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="register-address">Address</Label>

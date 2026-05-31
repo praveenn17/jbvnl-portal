@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Settings, Bell, Shield, Mail, Smartphone, Download, UserX, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Settings, Bell, Shield, Mail, Smartphone, Download, UserX, Trash2, X, HeadphonesIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockApi } from '@/lib/mockApi';
@@ -105,13 +105,18 @@ const ConsumerSettings: React.FC = () => {
 
   // ── Update Phone ─────────────────────────────────────────────────────────
   const handleUpdatePhone = async () => {
-    if (!phoneForm.phone || phoneForm.phone.trim().length < 10) {
-      toast({ title: "Error", description: "Please enter a valid phone number.", variant: "destructive" });
+    const phone = phoneForm.phone.trim();
+    if (!phone) {
+      toast({ title: "Error", description: "Phone number is required.", variant: "destructive" });
+      return;
+    }
+    if (!/^[0-9]{10}$/.test(phone)) {
+      toast({ title: "Invalid Phone Number", description: "Phone number must be exactly 10 digits (numbers only, no spaces or country codes).", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
-      await mockApi.updateMyProfile({ phone: phoneForm.phone.trim() });
+      await mockApi.updateMyProfile({ phone });
       if (refreshUser) await refreshUser();
       toast({ title: "Phone Updated", description: "Your mobile number has been updated." });
       setShowPhoneModal(false);
@@ -120,6 +125,45 @@ const ConsumerSettings: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ── Contact Us ───────────────────────────────────────────────────────────
+  const handleContactUs = () => {
+    const email = 'krpraveen2212@gmail.com';
+    const subject = encodeURIComponent('JBVNL Consumer Support Request');
+    
+    const rawBody = `Hello JBVNL Support Team,\n\nName: ${user?.name || ''}\nConsumer Number: ${user?.consumerNumber || ''}\n\nPlease describe your issue below:\n\nRegards,\n${user?.name || ''}`;
+    const body = encodeURIComponent(rawBody);
+    const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+
+    let hasBlurred = false;
+    const onBlur = () => { hasBlurred = true; };
+    window.addEventListener('blur', onBlur);
+
+    // Most reliable method across all browsers/devices
+    const link = document.createElement('a');
+    link.href = mailtoUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Fallback if the OS doesn't handle the mailto protocol
+    setTimeout(() => {
+      window.removeEventListener('blur', onBlur);
+      if (!hasBlurred) {
+        navigator.clipboard.writeText(email).then(() => {
+          toast({
+            title: "Support email copied",
+            description: "Support email copied to clipboard",
+          });
+        }).catch(() => {
+          toast({
+            title: "Support Email",
+            description: `Contact us at: ${email}`,
+          });
+        });
+      }
+    }, 1000);
   };
 
   // ── Export Account Data ──────────────────────────────────────────────────
@@ -307,6 +351,14 @@ const ConsumerSettings: React.FC = () => {
                   <Smartphone className="h-4 w-4 mr-2" />
                   Update Mobile Number
                 </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={handleContactUs}
+                >
+                  <HeadphonesIcon className="h-4 w-4 mr-2" />
+                  Contact Us
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -434,13 +486,21 @@ const ConsumerSettings: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Mobile Number</Label>
+                <Label>Mobile Number <span className="text-muted-foreground text-xs">(10 digits)</span></Label>
                 <Input
                   type="tel"
-                  placeholder="Enter new mobile number"
+                  placeholder="Enter 10-digit mobile number"
                   value={phoneForm.phone}
-                  onChange={(e) => setPhoneForm({ phone: e.target.value })}
+                  maxLength={10}
+                  onChange={(e) => setPhoneForm({ phone: e.target.value.replace(/\D/g, '') })}
                 />
+                {phoneForm.phone.length > 0 && !/^[0-9]{10}$/.test(phoneForm.phone) && (
+                  <p className="text-xs text-red-500">
+                    {phoneForm.phone.length < 10
+                      ? `${10 - phoneForm.phone.length} more digit(s) required`
+                      : 'Must be exactly 10 digits'}
+                  </p>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <Button onClick={handleUpdatePhone} disabled={saving} className="flex-1">
