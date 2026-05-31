@@ -58,7 +58,41 @@ const userSchema = new mongoose.Schema({
 
   // ── Security ────────────────────────────────────────────────────────────────
   tokenVersion: { type: Number, default: 0 },
+
+  // ── Password Reset (Forgot Password flow) ───────────────────────────────────
+  // Stores the SHA-256 HASH of the raw token — never the raw token itself.
+  resetPasswordToken: { type: String, default: null },
+
+  // Expiry timestamp for the reset token (15 minutes from issuance).
+  resetPasswordExpires: { type: Date, default: null },
+
+  // ── Session Management (Single Active Session) ────────────────────────────────
+  // Stores the currently active session ID (crypto.randomUUID).
+  // The DB value is the authoritative source of truth.
+  // A mismatch between the JWT's activeSessionId and this value means
+  // the session has been taken over from another device.
+  activeSessionId:   { type: String, default: null },
+
+  // Timestamp of last successful login that created this session.
+  lastLoginAt:       { type: Date,   default: null },
+
+  // IP address from the last login.
+  lastLoginIp:       { type: String, default: null },
+
+  // Device type parsed from the User-Agent (e.g. "Windows PC", "iPhone").
+  lastLoginDevice:   { type: String, default: null },
+
+  // Browser name parsed from the User-Agent (e.g. "Chrome", "Firefox").
+  lastLoginBrowser:  { type: String, default: null },
+
+  // Location — IP address used as fallback when geolocation is unavailable.
+  lastLoginLocation: { type: String, default: null },
+
+  // Last heartbeat timestamp updated by session-status polling (every 5 s).
+  // Sessions not seen for > 30 minutes are treated as stale and auto-replaced.
+  lastSeenAt:        { type: Date,   default: null },
 });
+
 
 // ── Password hashing pre-save hook ───────────────────────────────────────────
 // Automatically hashes the password whenever it is set or changed.

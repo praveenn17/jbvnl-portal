@@ -3,8 +3,9 @@ import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: string) => Promise<boolean>;
-  logout: () => void;
+  login: (email: string, password: string, role: string) => Promise<import('../types').LoginResult>;
+  takeoverSession: (email: string, password: string, role: string) => Promise<import('../types').LoginResult>;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   register: (userData: {
     name: string;
@@ -98,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ── Login ──────────────────────────────────────────────────────────────────
-  const login = async (email: string, password: string, role: string): Promise<boolean> => {
+  const login = async (email: string, password: string, role: string): Promise<import('../types').LoginResult> => {
     setLoading(true);
     try {
       const response = await fetch('/api/auth/login', {
@@ -111,6 +112,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
+      }
+
+      // Check if session takeover is required
+      if (data.requiresSessionTakeover) {
+        return {
+          requiresSessionTakeover: true,
+          sessionInfo: data.sessionInfo
+        };
       }
 
       const loggedUser: User = {
@@ -135,9 +144,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchPending(data.token, loggedUser.role);
       }
 
-      return true;
+      return { user: userWithPrefs };
     } catch (error) {
       throw error; // Re-throw so LoginTab can display the real message
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Session Takeover ───────────────────────────────────────────────────────
+  const takeoverSession = async (email: string, password: string, role: string): Promise<import('../types').LoginResult> => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/takeover-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, role }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Session takeover failed');
+      }
+
+      const loggedUser: User = {
+        id: data._id,
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        status: data.status,
+        consumerNumber: data.consumerNumber,
+        phone: data.phone,
+        address: data.address,
+        createdAt: data.createdAt || new Date().toISOString(),
+      };
+      const userWithPrefs = { ...loggedUser, preferences: data.preferences } as any;
+
+      setUser(userWithPrefs);
+      localStorage.setItem('jbvnl_user', JSON.stringify(userWithPrefs));
+      localStorage.setItem('jbvnl_token', data.token);
+
+      if (loggedUser.role === 'admin' || loggedUser.role === 'manager') {
+        fetchPending(data.token, loggedUser.role);
+      }
+
+      return { user: userWithPrefs };
+    } catch (error) {
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -336,7 +390,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const token = localStorage.getItem('jbvnl_token');
+    if (token) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } catch (e) {
+        console.error('Logout API failed:', e);
+      }
+    }
     setUser(null);
     localStorage.removeItem('jbvnl_user');
     localStorage.removeItem('jbvnl_token');
@@ -345,6 +410,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     user,
     login,
+    takeoverSession,
     logout,
     refreshUser,
     register,

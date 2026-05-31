@@ -14,6 +14,20 @@ export interface User {
   department?: string;
 }
 
+export interface SessionInfo {
+  loginTime: string;
+  ipAddress: string;
+  deviceInfo: string;
+  browser: string;
+  location: string;
+}
+
+export interface LoginResult {
+  requiresSessionTakeover?: boolean;
+  sessionInfo?: SessionInfo;
+  user?: User;
+}
+
 export interface Consumer extends User {
   role: 'consumer';
   consumerNumber: string;

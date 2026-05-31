@@ -14,9 +14,10 @@
  */
 
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { sendOtpEmail } = require('../utils/emailService');
+const { sendOtpEmail, sendPasswordResetEmail } = require('../utils/emailService');
 const { logAudit } = require('../utils/auditLogger');
 const notificationService = require('../utils/notificationService');
 
@@ -25,6 +26,7 @@ const OTP_EXPIRY_MS = 10 * 60 * 1000;       // 10 minutes
 const OTP_MAX_ATTEMPTS = 5;                  // max failed attempts per OTP
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;   // 60-second resend cooldown
 const JWT_EXPIRY = '30d';
+const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
 // Simple blocklist of obviously weak/common passwords
 const COMMON_PASSWORDS = [
@@ -37,8 +39,8 @@ const COMMON_PASSWORDS = [
 ];
 
 // ── Helper: Generate JWT ──────────────────────────────────────────────────────
-const generateToken = (id, tokenVersion = 0) =>
-  jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRY });
+const generateToken = (id, tokenVersion = 0, activeSessionId = null) =>
+  jwt.sign({ id, tokenVersion, activeSessionId }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRY });
 
 // ── Helper: Validate email format ─────────────────────────────────────────────
 const isValidEmail = (email) =>
@@ -80,6 +82,32 @@ const validatePassword = (password) => {
 // ── Helper: Generate a 6-digit numeric OTP string ─────────────────────────────
 const generateOtp = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
+
+// ── Helper: Parse Browser from User-Agent ─────────────────────────────────────
+const parseBrowser = (userAgent) => {
+  if (!userAgent) return 'Unknown Browser';
+  if (userAgent.includes('Firefox')) return 'Firefox';
+  if (userAgent.includes('Edg/')) return 'Edge';
+  if (userAgent.includes('Chrome')) return 'Chrome';
+  if (userAgent.includes('Safari')) return 'Safari';
+  return 'Unknown Browser';
+};
+
+// ── Helper: Parse Device from User-Agent ──────────────────────────────────────
+const parseDevice = (userAgent) => {
+  if (!userAgent) return 'Unknown Device';
+  if (userAgent.includes('Mobi')) return 'Mobile';
+  if (userAgent.includes('Tablet') || userAgent.includes('iPad')) return 'Tablet';
+  if (userAgent.includes('Windows')) return 'Windows PC';
+  if (userAgent.includes('Mac')) return 'Mac';
+  if (userAgent.includes('Linux')) return 'Linux PC';
+  return 'Desktop';
+};
+
+// ── Helper: Get Client IP ─────────────────────────────────────────────────────
+const getClientIp = (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // @desc    Send OTP to email (first step of registration)
@@ -481,7 +509,7 @@ const registerUser = async (req, res) => {
       role: savedUser.role,
       status: savedUser.status,
       createdAt: savedUser.createdAt,
-      token: generateToken(savedUser._id, savedUser.tokenVersion),
+      token: generateToken(savedUser._id, savedUser.tokenVersion, savedUser.activeSessionId),
     });
   } catch (error) {
     console.error(`[REGISTER ERROR] ${email}:`, error.message);
@@ -550,6 +578,75 @@ const authUser = async (req, res) => {
       });
     }
 
+    // =========================================================================
+    // Single Active Session - Core Logic
+    // =========================================================================
+    
+    // Check if user has an existing active session
+    if (user.activeSessionId) {
+      // Stale session protection: if the last heartbeat is older than 30 minutes, automatically replace
+      const THIRTY_MINUTES = 30 * 60 * 1000;
+      const isStale = user.lastSeenAt && (Date.now() - user.lastSeenAt.getTime() > THIRTY_MINUTES);
+      
+      if (!isStale) {
+        // Active session exists and is not stale. Prompt for takeover.
+        logAudit({
+          action: 'SESSION_TAKEOVER_REQUESTED',
+          message: `Login attempted but an active session exists`,
+          actor: user._id,
+          actorName: user.name,
+          actorEmail: user.email,
+          actorRole: user.role,
+          targetType: 'auth',
+          targetId: user._id,
+          severity: 'info',
+        });
+        
+        return res.json({
+          requiresSessionTakeover: true,
+          sessionInfo: {
+            loginTime: user.lastLoginAt,
+            ipAddress: user.lastLoginIp,
+            deviceInfo: user.lastLoginDevice,
+            browser: user.lastLoginBrowser,
+            location: user.lastLoginLocation
+          }
+        });
+      }
+      
+      // If stale, log the automatic replacement and fall through to create a new session
+      logAudit({
+        action: 'SESSION_STALE_AUTO_REPLACED',
+        message: `Stale session (last seen ${user.lastSeenAt}) automatically replaced`,
+        actor: user._id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetType: 'auth',
+        targetId: user._id,
+        severity: 'info',
+      });
+    }
+
+    // No active session or session was stale. Create a new session.
+    const newSessionId = crypto.randomUUID();
+    const clientIp = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    const browser = parseBrowser(userAgent);
+    const device = parseDevice(userAgent);
+    // Location fallback to IP if true geolocation isn't available
+    const location = clientIp !== 'unknown' ? `IP: ${clientIp}` : 'Unknown Location';
+    
+    user.activeSessionId = newSessionId;
+    user.lastLoginAt = new Date();
+    user.lastLoginIp = clientIp;
+    user.lastLoginDevice = device;
+    user.lastLoginBrowser = browser;
+    user.lastLoginLocation = location;
+    user.lastSeenAt = new Date(); // initialize heartbeat
+    
+    await user.save();
+
     console.warn(`[LOGIN] Success: ${email} (${user.role})`);
 
     // Audit Log
@@ -576,7 +673,7 @@ const authUser = async (req, res) => {
       address: user.address,
       preferences: user.preferences,
       createdAt: user.createdAt,
-      token: generateToken(user._id, user.tokenVersion),
+      token: generateToken(user._id, user.tokenVersion, user.activeSessionId),
     });
   } catch (error) {
     console.error(`[LOGIN ERROR] ${email}:`, error.message);
@@ -952,6 +1049,9 @@ const logoutAllDevices = async (req, res) => {
     }
 
     user.tokenVersion = (user.tokenVersion || 0) + 1;
+    // Clear session data on logout-all
+    user.activeSessionId = null;
+    user.lastSeenAt = null;
     await user.save();
 
     logAudit({
@@ -988,6 +1088,362 @@ const getConsumers = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Forgot Password — generate a reset token and email a reset link
+// @route   POST /api/auth/forgot-password
+// @access  Public
+//
+// Security:
+//  - Admin accounts are silently excluded (no special error message).
+//  - A generic response is ALWAYS returned to prevent email enumeration.
+//  - The raw token is sent only in the email; only its SHA-256 hash is stored.
+//  - Token expires in 15 minutes.
+// ═══════════════════════════════════════════════════════════════════════════════
+const forgotPassword = async (req, res) => {
+  // Generic message — used in ALL branches to prevent email enumeration.
+  const GENERIC_MSG = 'If an account with that email exists and is eligible, a password reset link has been sent.';
+
+  let { email, role } = req.body;
+
+  if (!email || !role) {
+    return res.status(400).json({ message: 'Email and role are required.' });
+  }
+
+  email = email.toLowerCase().trim();
+  role  = role.toLowerCase().trim();
+
+  // Only consumers and managers can reset via this flow.
+  if (!['consumer', 'manager'].includes(role)) {
+    // Return generic message even for admin — never reveal exclusion.
+    return res.json({ message: GENERIC_MSG });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.json({ message: GENERIC_MSG });
+  }
+
+  // Resolve FRONTEND_URL — never hardcode URLs.
+  const frontendUrl = process.env.FRONTEND_URL
+    || (process.env.NODE_ENV !== 'production' ? 'http://localhost:8080' : null);
+
+  if (!frontendUrl) {
+    console.error('[FORGOT-PWD] FRONTEND_URL is not set in environment variables.');
+    return res.status(500).json({ message: 'Server configuration error. Please contact support.' });
+  }
+
+  try {
+    // Find user — must be a real registered user (not an OTP placeholder),
+    // match the claimed role, and have an approved status.
+    const user = await User.findOne({
+      email,
+      role,
+      status: 'approved',
+      name: { $ne: '__otp_pending__' },
+    });
+
+    if (!user) {
+      // Always return generic message — log silently for observability.
+      console.warn(`[FORGOT-PWD] Ignored request for email=${email} role=${role} (not found / not approved).`);
+      return res.json({ message: GENERIC_MSG });
+    }
+
+    // Generate a cryptographically secure 32-byte (64-char hex) raw token.
+    const rawToken = crypto.randomBytes(32).toString('hex');
+
+    // Hash the raw token with SHA-256 before persisting — prevents DB leakage.
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    // Persist hashed token + expiry.
+    user.resetPasswordToken   = hashedToken;
+    user.resetPasswordExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+    await user.save();
+
+    // Build the reset URL using the environment variable (never hardcoded).
+    const resetUrl = `${frontendUrl}/reset-password/${rawToken}`;
+
+    // Send the branded email (non-blocking in dev if SMTP not configured).
+    const emailSent = await sendPasswordResetEmail(user.email, user.name, resetUrl);
+
+    if (!emailSent && process.env.NODE_ENV === 'production') {
+      // Roll back token so user can try again immediately.
+      user.resetPasswordToken   = null;
+      user.resetPasswordExpires = null;
+      await user.save();
+      return res.status(500).json({ message: 'Failed to send reset email. Please try again.' });
+    }
+
+    // Audit log — includes IP for rate-limit analysis.
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    logAudit({
+      action: 'PASSWORD_RESET_REQUESTED',
+      message: `Password reset requested for ${user.name} (${user.email})`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'user',
+      targetId: user._id,
+      metadata: { ip: clientIp, role: user.role },
+      severity: 'info',
+    });
+
+    // In-app notification for the user.
+    notificationService.createNotificationForUser(user._id, {
+      title: 'Password Reset Requested',
+      message: 'A password reset link has been sent to your registered email address. It expires in 15 minutes.',
+      type: 'SECURITY',
+      priority: 'high',
+      targetType: 'user',
+      targetId: user._id,
+    });
+
+    console.warn(`[FORGOT-PWD] Reset email sent to ${user.email}`);
+    return res.json({ message: GENERIC_MSG });
+  } catch (err) {
+    console.error('[FORGOT-PWD ERROR]', err.message, err.stack);
+    return res.status(500).json({ message: 'Server error. Please try again.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Reset Password — validate token and set new password
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
+//
+// Security:
+//  - Token is hashed with SHA-256 before DB lookup — raw token never stored.
+//  - Admin accounts are excluded from this flow.
+//  - tokenVersion is incremented, invalidating ALL previously issued JWTs.
+//  - Token fields are cleared after use, preventing token reuse.
+// ═══════════════════════════════════════════════════════════════════════════════
+const resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { newPassword, confirmPassword } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ message: 'Reset token is required.' });
+  }
+
+  if (!newPassword || !confirmPassword) {
+    return res.status(400).json({ message: 'New password and confirmation are required.' });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match.' });
+  }
+
+  // Validate password strength (reuse existing helper).
+  const passwordError = validatePassword(newPassword);
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
+  try {
+    // Hash the incoming raw token to compare with the stored hash.
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find the user whose stored hash matches AND token hasn't expired.
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+      role: { $in: ['consumer', 'manager'] }, // Admin can never reset via this flow.
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: 'Password reset link is invalid or has expired. Please request a new one.',
+      });
+    }
+
+    // Set the new password — pre-save hook will hash it with bcrypt.
+    user.password = newPassword;
+
+    // Clear the reset token fields to prevent reuse.
+    user.resetPasswordToken   = null;
+    user.resetPasswordExpires = null;
+
+    // Increment tokenVersion — immediately invalidates ALL existing JWTs for this user.
+    // Every device the user is logged into will be forced to log in again.
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    
+    // Also explicitly destroy the active session
+    user.activeSessionId = null;
+    user.lastSeenAt = null;
+
+    await user.save();
+
+    // Audit log.
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    logAudit({
+      action: 'PASSWORD_RESET_COMPLETED',
+      message: `Password successfully reset for ${user.name} (${user.email})`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'user',
+      targetId: user._id,
+      metadata: { ip: clientIp, role: user.role },
+      severity: 'info',
+    });
+
+    // In-app notification for the user.
+    notificationService.createNotificationForUser(user._id, {
+      title: 'Password Changed Successfully',
+      message: 'Your password was changed successfully. All active sessions have been signed out.',
+      type: 'SECURITY',
+      priority: 'high',
+      targetType: 'user',
+      targetId: user._id,
+    });
+
+    console.warn(`[RESET-PWD] Password reset completed for ${user.email}`);
+    return res.json({ message: 'Password updated successfully. Please log in again.' });
+  } catch (err) {
+    console.error('[RESET-PWD ERROR]', err.message, err.stack);
+    return res.status(500).json({ message: 'Server error. Please try again.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Takeover Session
+// @route   POST /api/auth/takeover-session
+// @access  Public
+// ═══════════════════════════════════════════════════════════════════════════════
+const takeoverSession = async (req, res) => {
+  let { email, password, role } = req.body;
+
+  if (!email || !password || !role) {
+    return res.status(400).json({ message: 'Email, password, and role are required.' });
+  }
+
+  email = email.toLowerCase().trim();
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // Must explicitly verify the password again before allowing a takeover
+    const isPasswordCorrect = await user.comparePassword(password);
+    if (!isPasswordCorrect || user.role !== role) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // Generate new session ID
+    const newSessionId = crypto.randomUUID();
+    const clientIp = getClientIp(req);
+    const userAgent = req.headers['user-agent'];
+    const browser = parseBrowser(userAgent);
+    const device = parseDevice(userAgent);
+    const location = clientIp !== 'unknown' ? `IP: ${clientIp}` : 'Unknown Location';
+
+    user.activeSessionId = newSessionId;
+    user.lastLoginAt = new Date();
+    user.lastLoginIp = clientIp;
+    user.lastLoginDevice = device;
+    user.lastLoginBrowser = browser;
+    user.lastLoginLocation = location;
+    user.lastSeenAt = new Date();
+
+    await user.save();
+
+    // Audit Log
+    logAudit({
+      action: 'SESSION_TAKEOVER_COMPLETED',
+      message: `Session takeover completed. Previous session terminated.`,
+      actor: user._id,
+      actorName: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      targetType: 'auth',
+      targetId: user._id,
+      severity: 'warning',
+    });
+
+    // Notify user in-app
+    notificationService.createNotificationForUser(user._id, {
+      title: 'Session Taken Over',
+      message: 'Your account was logged into from another device. Your previous session was terminated.',
+      type: 'SESSION_TERMINATED',
+      priority: 'high',
+      targetType: 'user',
+      targetId: user._id,
+    });
+
+    return res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      consumerNumber: user.consumerNumber,
+      phone: user.phone,
+      address: user.address,
+      preferences: user.preferences,
+      createdAt: user.createdAt,
+      token: generateToken(user._id, user.tokenVersion, user.activeSessionId),
+    });
+  } catch (error) {
+    console.error(`[TAKEOVER ERROR] ${email}:`, error.message);
+    return res.status(500).json({ message: 'Server error. Please try again.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Get Session Status (Polling Endpoint)
+// @route   GET /api/auth/session-status
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const getSessionStatus = async (req, res) => {
+  try {
+    const user = req.user; // populated by authMiddleware which already checks activeSessionId
+    
+    // Update heartbeat
+    user.lastSeenAt = new Date();
+    await user.save();
+    
+    return res.json({ valid: true });
+  } catch (error) {
+    return res.status(500).json({ valid: false, message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// @desc    Logout User (explicitly clear session)
+// @route   POST /api/auth/logout
+// @access  Private
+// ═══════════════════════════════════════════════════════════════════════════════
+const logoutUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      user.activeSessionId = null;
+      user.lastSeenAt = null;
+      await user.save();
+
+      logAudit({
+        action: 'USER_LOGOUT',
+        message: `User explicitly logged out`,
+        actor: user._id,
+        actorName: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        targetType: 'auth',
+        targetId: user._id,
+        severity: 'info',
+      });
+    }
+
+    return res.json({ message: 'Logged out successfully.' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   sendOtp,
   resendOtp,
@@ -1003,5 +1459,10 @@ module.exports = {
   updatePreferences,
   deactivateAccount,
   deleteAccountRequest,
-  getConsumers
+  getConsumers,
+  forgotPassword,
+  resetPassword,
+  takeoverSession,
+  getSessionStatus,
+  logoutUser,
 };

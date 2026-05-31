@@ -13,7 +13,7 @@ const protect = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
+
       const user = await User.findById(decoded.id).select('-password');
       if (!user) {
         return res.status(401).json({ message: 'Not authorized, user not found' });
@@ -21,7 +21,15 @@ const protect = async (req, res, next) => {
 
       // Check token version to handle logout-all devices
       if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
-        return res.status(401).json({ message: 'Session expired. Please login again.' });
+        return res.status(401).json({ message: 'Session expired. Please login again.', code: 'SESSION_EXPIRED' });
+      }
+
+      // Check active session ID for Single Active Session feature
+      if (decoded.activeSessionId !== user.activeSessionId) {
+        return res.status(401).json({ 
+          message: 'Your account was logged in from another browser. This session has been terminated.',
+          code: 'SESSION_TERMINATED' 
+        });
       }
 
       req.user = user;

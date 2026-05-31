@@ -20,12 +20,16 @@ const notificationSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: [
-      'USER_REGISTRATION', 
-      'USER_APPROVAL', 
-      'COMPLAINT_ASSIGNED', 
-      'COMPLAINT_STATUS_UPDATED', 
-      'COMPLAINT_PRIORITY_CHANGED', 
+      'USER_REGISTRATION',
+      'USER_APPROVAL',
+      'USER_DEACTIVATION',
+      'USER_DELETION',
+      'COMPLAINT_ASSIGNED',
+      'COMPLAINT_STATUS_UPDATED',
+      'COMPLAINT_PRIORITY_CHANGED',
       'BILL_UPDATED',
+      'SECURITY',
+      'SESSION_TERMINATED',
       'SYSTEM'
     ],
     default: 'SYSTEM'
