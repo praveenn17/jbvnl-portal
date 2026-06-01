@@ -41,15 +41,17 @@ const Footer: React.FC = () => {
               Empowering Jharkhand with reliable electricity services and modern digital solutions.
             </p>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
-            <ul className="space-y-2 text-gray-400">
-              <li><button onClick={handleBillPayment} className="hover:text-white transition-colors">Bill Payment</button></li>
-              <li><button onClick={handleNewConnection} className="hover:text-white transition-colors">New Connection</button></li>
-              <li><button onClick={handleComplaintStatus} className="hover:text-white transition-colors">Complaint Status</button></li>
-              <li><button onClick={handleTariffRates} className="hover:text-white transition-colors">Tariff Rates</button></li>
-            </ul>
-          </div>
+          {user?.role !== 'admin' && user?.role !== 'manager' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li><button onClick={handleBillPayment} className="hover:text-white transition-colors">Bill Payment</button></li>
+                <li><button onClick={handleNewConnection} className="hover:text-white transition-colors">New Connection</button></li>
+                <li><button onClick={handleComplaintStatus} className="hover:text-white transition-colors">Complaint Status</button></li>
+                <li><button onClick={handleTariffRates} className="hover:text-white transition-colors">Tariff Rates</button></li>
+              </ul>
+            </div>
+          )}
           <div>
             <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
             <ul className="space-y-2 text-gray-400">

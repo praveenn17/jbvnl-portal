@@ -20,6 +20,7 @@ import ApprovalDetailsModal from './ApprovalDetailsModal';
 import AuditLogs from './AuditLogs';
 import ConversationChatModal from '../chat/ConversationChatModal';
 import { mockApi } from '../../lib/mockApi';
+import { generateMockBills } from '@/pages/consumer/SixMonthsDetails';
 
 
 const getApiUrl = (url: string) => {
@@ -242,13 +243,88 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [complaintsData, statsData, messagesData] = await Promise.all([
+        const [complaintsData, statsData, messagesData, consumersData] = await Promise.all([
           mockApi.getComplaints(),
           mockApi.getDashboardStats(),
           mockApi.getAdminMessages().catch(() => []),
+          mockApi.getConsumersForManager().catch(() => []),
         ]);
+
+        // TODO: Replace generateMockBills with mockApi.getBills(consumerNumber) when payment API is ready
+        let calculatedRevenue = 0;
+        const monthlyMap: Record<string, number> = {};
+        let billsGenerated = 0;
+        let paymentsReceived = 0;
+        const newRegistrations = consumersData ? consumersData.length : 0;
+        const pendingApprovalsCount = consumersData ? consumersData.filter((u: any) => u.status === 'pending' || u.isApproved === false).length : 0;
+
+        if (consumersData && Array.isArray(consumersData)) {
+          consumersData.forEach((consumer: any) => {
+            const bills = generateMockBills(consumer.consumerNumber);
+            billsGenerated += bills.length;
+            bills.forEach((bill: any) => {
+              const amount = bill.amount || 0;
+              calculatedRevenue += amount;
+              if (bill.status === 'paid') paymentsReceived++;
+              
+              const month = bill.billingPeriod || 'Unknown';
+              if (!monthlyMap[month]) monthlyMap[month] = 0;
+              monthlyMap[month] += amount;
+            });
+          });
+        }
+
+        const dynamicMonthlyRevenue = Object.entries(monthlyMap).map(([month, rev]) => {
+          return {
+            month,
+            revenue: Number((rev / 1000000).toFixed(2))
+          };
+        }).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
+        const categoryCounts: Record<string, number> = {};
+        let complaintsResolved = 0;
+        if (complaintsData && Array.isArray(complaintsData)) {
+          complaintsData.forEach((comp: any) => {
+            if (comp.status === 'resolved' || comp.status === 'closed') {
+              complaintsResolved++;
+            }
+            const cat = comp.category || 'other';
+            if (!categoryCounts[cat]) categoryCounts[cat] = 0;
+            categoryCounts[cat]++;
+          });
+        }
+        
+        const COLORS_MAP: Record<string, string> = {
+          billing: '#0088FE',
+          power_outage: '#00C49F',
+          meter: '#FFBB28',
+          connection: '#FF8042',
+          other: '#8884D8',
+        };
+        const dynamicComplaintsByCategory = Object.entries(categoryCounts).map(([name, value]) => ({
+          name: name.charAt(0).toUpperCase() + name.slice(1).replace('_', ' '),
+          value,
+          color: COLORS_MAP[name.toLowerCase()] || '#8884D8'
+        }));
+
+        const resolvedPercentage = complaintsData?.length > 0 
+          ? Math.round((complaintsResolved / complaintsData.length) * 100) 
+          : 0;
+
         setComplaints(complaintsData);
-        setStats(statsData);
+        setStats({ 
+          ...statsData, 
+          revenue: calculatedRevenue,
+          monthlyRevenue: dynamicMonthlyRevenue,
+          complaintsByCategory: dynamicComplaintsByCategory,
+          pendingApprovalsCount,
+          performance: {
+            newRegistrations,
+            billsGenerated,
+            paymentsReceived,
+            complaintsResolved: `${resolvedPercentage}%`
+          }
+        });
         setMessages(Array.isArray(messagesData) ? messagesData : []);
       } catch (error) {
         console.error('Failed to fetch admin data:', error);
@@ -341,7 +417,7 @@ const AdminDashboard: React.FC = () => {
             <UserCheck className="h-5 w-5 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{pendingUsers.length}</div>
+            <div className="text-3xl font-bold text-foreground">{stats.pendingApprovalsCount !== undefined ? stats.pendingApprovalsCount : pendingUsers.length}</div>
             <p className="text-xs text-muted-foreground mt-1">Awaiting review</p>
           </CardContent>
         </Card>
@@ -604,10 +680,10 @@ const AdminDashboard: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
-                  { label: 'New Registrations', value: '180', color: 'text-primary' },
-                  { label: 'Bills Generated', value: '12,456', color: 'text-sky-400' },
-                  { label: 'Payments Received', value: '11,890', color: 'text-emerald-400' },
-                  { label: 'Complaints Resolved', value: '89%', color: 'text-amber-400' },
+                  { label: 'New Registrations', value: stats.performance?.newRegistrations || 0, color: 'text-primary' },
+                  { label: 'Bills Generated', value: (stats.performance?.billsGenerated || 0).toLocaleString(), color: 'text-sky-400' },
+                  { label: 'Payments Received', value: (stats.performance?.paymentsReceived || 0).toLocaleString(), color: 'text-emerald-400' },
+                  { label: 'Complaints Resolved', value: stats.performance?.complaintsResolved || '0%', color: 'text-amber-400' },
                 ].map(stat => (
                   <div key={stat.label} className="text-center p-4 rounded-lg bg-muted/40">
                     <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>

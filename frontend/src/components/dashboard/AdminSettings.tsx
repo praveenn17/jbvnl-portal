@@ -39,6 +39,18 @@ const AdminSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState<ModalKey>(null);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [consumersCount, setConsumersCount] = useState<number>(0);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
+
+  const DEFAULT_SETTINGS: SettingsState = {
+    autoApprovalThreshold: 5,
+    emailNotifications: { registration: true, complaints: true, billing: false, summary: true },
+    smsAlerts: { escalation: true, payment: false, outage: true },
+    backupSettings: { schedule: 'Daily 2:00 AM', lastBackupAt: '', status: 'Healthy', frequency: 'daily' },
+    securityLevel: 'standard',
+    notificationPrefs: { email: true, sms: true, push: false, weeklyReport: true },
+    securitySettings: { passwordPolicy: true, otpVerification: true, adminProtection: true, sessionTimeout: 30 }
+  };
 
   // Temp state for editing inside modals
   const [tempThreshold, setTempThreshold] = useState(5);
@@ -50,6 +62,10 @@ const AdminSettings: React.FC = () => {
 
   React.useEffect(() => {
     fetchSettings();
+    mockApi.getConsumersForManager().then(c => {
+      setConsumersCount(c?.length || 0);
+      setPendingApprovalsCount(c?.filter((u: any) => u.status === 'pending' || u.isApproved === false).length || 0);
+    }).catch(() => {});
   }, []);
 
   const fetchSettings = async () => {
@@ -58,7 +74,8 @@ const AdminSettings: React.FC = () => {
       const data = await mockApi.getAdminSettings();
       setSettings(data);
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to load settings', variant: 'destructive' });
+      toast({ title: 'Notice', description: 'Using default settings as fallback.', variant: 'default' });
+      setSettings(DEFAULT_SETTINGS);
     } finally {
       setLoading(false);
     }
@@ -117,10 +134,13 @@ const AdminSettings: React.FC = () => {
     );
   }
 
+  const hasEmailEnabled = settings.emailNotifications && Object.values(settings.emailNotifications).some(v => v);
+  const hasSmsEnabled = settings.smsAlerts && Object.values(settings.smsAlerts).some(v => v);
+
   const settingRows: { label: string; value: string; valueClass?: string; icon: React.ReactNode; key: ModalKey }[] = [
     { label: 'Auto-Approval Threshold', value: `${settings.autoApprovalThreshold} requests`, icon: <Gauge className="h-4 w-4" />, key: 'autoApproval' },
-    { label: 'Email Notifications', value: 'Enabled', valueClass: 'text-emerald-400', icon: <Mail className="h-4 w-4" />, key: 'emailNotifications' },
-    { label: 'SMS Alerts', value: 'Enabled', valueClass: 'text-emerald-400', icon: <MessageSquare className="h-4 w-4" />, key: 'smsAlerts' },
+    { label: 'Email Notifications', value: hasEmailEnabled ? 'Enabled' : 'Disabled', valueClass: hasEmailEnabled ? 'text-emerald-400' : 'text-muted-foreground', icon: <Mail className="h-4 w-4" />, key: 'emailNotifications' },
+    { label: 'SMS Alerts', value: hasSmsEnabled ? 'Enabled' : 'Disabled', valueClass: hasSmsEnabled ? 'text-emerald-400' : 'text-muted-foreground', icon: <MessageSquare className="h-4 w-4" />, key: 'smsAlerts' },
     { label: 'Database Backup', value: settings.backupSettings?.schedule || 'Daily', valueClass: 'text-muted-foreground', icon: <Database className="h-4 w-4" />, key: 'backup' },
     { label: 'Security Level', value: settings.securityLevel.charAt(0).toUpperCase() + settings.securityLevel.slice(1), valueClass: settings.securityLevel === 'strict' ? 'text-destructive' : settings.securityLevel === 'high' ? 'text-amber-400' : 'text-yellow-500', icon: <Shield className="h-4 w-4" />, key: 'security' },
   ];
@@ -309,8 +329,8 @@ const AdminSettings: React.FC = () => {
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             {[
-              { label: 'Total Consumers', value: '24,580', color: 'text-primary' },
-              { label: 'Pending Approvals', value: '12', color: 'text-amber-400' },
+              { label: 'Total Consumers', value: consumersCount.toLocaleString(), color: 'text-primary' },
+              { label: 'Pending Approvals', value: pendingApprovalsCount.toLocaleString(), color: 'text-amber-400' },
               { label: 'Active Managers', value: '3', color: 'text-emerald-400' },
               { label: 'Suspended Users', value: '0', color: 'text-muted-foreground' },
             ].map(s => (
