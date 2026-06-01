@@ -447,7 +447,31 @@ const registerUser = async (req, res) => {
     pendingRecord.name = name;
     pendingRecord.password = password; // Will be hashed by pre-save hook
     pendingRecord.role = chosenRole;
-    pendingRecord.status = chosenRole === 'manager' ? 'pending' : 'approved';
+    let assignedStatus = 'pending';
+
+    if (chosenRole === 'consumer') {
+      // Fetch AdminSettings to check auto-approval threshold
+      const AdminSettings = require('../models/AdminSettings');
+      const settings = await AdminSettings.findOne().sort({ createdAt: 1 });
+      const threshold = settings?.autoApprovalThreshold ?? 5;
+
+      // Count current pending consumers (exclude OTP placeholder records)
+      const pendingCount = await User.countDocuments({
+        role: 'consumer',
+        status: 'pending',
+        name: { $ne: '__otp_pending__' }
+      });
+
+      if (pendingCount < threshold) {
+        assignedStatus = 'approved';
+      } else {
+        assignedStatus = 'pending';
+      }
+    } else if (chosenRole === 'manager') {
+      assignedStatus = 'pending';
+    }
+
+    pendingRecord.status = assignedStatus;
     pendingRecord.isEmailVerified = true;
     pendingRecord.phone = phone || undefined;
     
@@ -492,9 +516,14 @@ const registerUser = async (req, res) => {
 
     // Notify admins of new pending manager or consumer
     if (savedUser.status === 'pending') {
+      const title = savedUser.role === 'manager' ? 'New Manager Registration' : 'New Consumer Pending Approval';
+      const message = savedUser.role === 'manager'
+        ? `${savedUser.name} has registered as a manager and is pending approval.`
+        : `${savedUser.name} has registered as a consumer but exceeded the auto-approval threshold. Manual approval required.`;
+
       notificationService.createNotificationForRole('admin', {
-        title: 'New Manager Registration',
-        message: `${savedUser.name} has registered and is pending approval.`,
+        title,
+        message,
         type: 'USER_REGISTRATION',
         priority: 'normal',
         targetType: 'user',
