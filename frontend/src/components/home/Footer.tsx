@@ -1,9 +1,28 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Footer: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const isConsumer = user?.role === 'consumer';
+
+  const handleBillPayment = () => {
+    navigate(isConsumer ? '/consumer/six-months' : '/bill-payment');
+  };
+
+  const handleNewConnection = () => {
+    navigate(isConsumer ? '/consumer/new-connection' : '/new-connection');
+  };
+
+  const handleComplaintStatus = () => {
+    navigate(isConsumer ? '/consumer/complaint-status' : '/complaint-status');
+  };
+
+  const handleTariffRates = () => {
+    navigate('/tariff-rates');
+  };
 
   return (
     <footer className="bg-gray-900 text-white py-12">
@@ -11,9 +30,9 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <img 
-                src="/lovable-uploads/c59983aa-c865-4c97-85ff-9de45f1f7d68.png" 
-                alt="JBVNL Logo" 
+              <img
+                src="/lovable-uploads/c59983aa-c865-4c97-85ff-9de45f1f7d68.png"
+                alt="JBVNL Logo"
                 className="w-8 h-8"
               />
               <span className="text-xl font-bold">JBVNL</span>
@@ -25,10 +44,10 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-gray-400">
-              <li><button onClick={() => navigate('/bill-payment')} className="hover:text-white transition-colors">Bill Payment</button></li>
-              <li><button onClick={() => navigate('/new-connection')} className="hover:text-white transition-colors">New Connection</button></li>
-              <li><button onClick={() => navigate('/complaint-status')} className="hover:text-white transition-colors">Complaint Status</button></li>
-              <li><button onClick={() => navigate('/tariff-rates')} className="hover:text-white transition-colors">Tariff Rates</button></li>
+              <li><button onClick={handleBillPayment} className="hover:text-white transition-colors">Bill Payment</button></li>
+              <li><button onClick={handleNewConnection} className="hover:text-white transition-colors">New Connection</button></li>
+              <li><button onClick={handleComplaintStatus} className="hover:text-white transition-colors">Complaint Status</button></li>
+              <li><button onClick={handleTariffRates} className="hover:text-white transition-colors">Tariff Rates</button></li>
             </ul>
           </div>
           <div>

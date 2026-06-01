@@ -23,6 +23,8 @@ import ConsumerSettings from "./pages/consumer/ConsumerSettings";
 import FormPages from "./pages/consumer/FormPages";
 import ComplaintTracking from "./pages/consumer/ComplaintTracking";
 import SixMonthsDetails from "./pages/consumer/SixMonthsDetails";
+import ConsumerComplaintStatus from "./pages/consumer/ConsumerComplaintStatus";
+import NewConnectionInfo from "./pages/consumer/NewConnectionInfo";
 import AdminManagement from "./pages/manager/AdminManagement";
 import RevenueDetails from "./pages/manager/RevenueDetails";
 import AdminDashboardAccess from "./pages/manager/AdminDashboardAccess";
@@ -65,6 +67,8 @@ const App = () => (
                 <Route path="/consumer/settings" element={<ProtectedRoute allowedRoles={['consumer']}><ConsumerSettings /></ProtectedRoute>} />
                 <Route path="/consumer/form/:formType" element={<ProtectedRoute allowedRoles={['consumer']}><FormPages /></ProtectedRoute>} />
                 <Route path="/consumer/complaint-tracking/:complaintId" element={<ProtectedRoute allowedRoles={['consumer']}><ComplaintTracking /></ProtectedRoute>} />
+                <Route path="/consumer/complaint-status" element={<ProtectedRoute allowedRoles={['consumer']}><ConsumerComplaintStatus /></ProtectedRoute>} />
+                <Route path="/consumer/new-connection" element={<ProtectedRoute allowedRoles={['consumer']}><NewConnectionInfo /></ProtectedRoute>} />
                 <Route path="/consumer/six-months" element={<ProtectedRoute allowedRoles={['consumer']}><SixMonthsDetails /></ProtectedRoute>} />
 
                 {/* Manager-only routes */}

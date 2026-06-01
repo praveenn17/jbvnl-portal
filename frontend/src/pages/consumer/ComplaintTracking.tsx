@@ -57,25 +57,25 @@ const ComplaintTracking: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
-      case 'open': return 'bg-blue-100 text-blue-800';
-      case 'closed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'resolved': return 'bg-green-500/10 text-green-600';
+      case 'in_progress': return 'bg-yellow-500/10 text-yellow-600';
+      case 'open': return 'bg-blue-500/10 text-blue-600';
+      case 'closed': return 'bg-muted text-muted-foreground';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'high': return 'bg-red-500/10 text-red-600';
+      case 'medium': return 'bg-yellow-500/10 text-yellow-600';
+      case 'low': return 'bg-green-500/10 text-green-600';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -177,7 +177,7 @@ const ComplaintTracking: React.FC = () => {
         </Card>
 
         {/* Current Status */}
-        <Card className="bg-gradient-to-r from-blue-50 to-purple-50">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
@@ -186,7 +186,7 @@ const ComplaintTracking: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-center py-6">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Clock className="h-8 w-8 text-yellow-600" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Investigation In Progress</h3>

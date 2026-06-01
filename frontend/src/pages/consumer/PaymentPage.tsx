@@ -73,10 +73,10 @@ const PaymentPage: React.FC = () => {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
         <Card className="max-w-md w-full">
           <CardContent className="text-center py-8">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="h-10 w-10 text-green-600" />
             </div>
             <h2 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h2>
@@ -84,7 +84,7 @@ const PaymentPage: React.FC = () => {
               Your payment of ₹{billDetails.totalAmount.toLocaleString()} has been processed successfully.
             </p>
             
-            <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+            <div className="bg-muted rounded-lg p-4 mb-6 text-left">
               <h3 className="font-semibold mb-2">Transaction Details</h3>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
@@ -128,7 +128,7 @@ const PaymentPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -213,7 +213,7 @@ const PaymentPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-3">
                   <div 
-                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
                     onClick={() => setPaymentMethod('card')}
                   >
                     <div className="flex items-center gap-3">
@@ -226,7 +226,7 @@ const PaymentPage: React.FC = () => {
                   </div>
 
                   <div 
-                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${paymentMethod === 'upi' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${paymentMethod === 'upi' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
                     onClick={() => setPaymentMethod('upi')}
                   >
                     <div className="flex items-center gap-3">
@@ -239,7 +239,7 @@ const PaymentPage: React.FC = () => {
                   </div>
 
                   <div 
-                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${paymentMethod === 'netbanking' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${paymentMethod === 'netbanking' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
                     onClick={() => setPaymentMethod('netbanking')}
                   >
                     <div className="flex items-center gap-3">

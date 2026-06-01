@@ -399,10 +399,7 @@ const ConsumerSettings: React.FC = () => {
                   <Download className="h-4 w-4 mr-2" />
                   Export Account Data
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={handleDownloadBillHistory}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Bill History
-                </Button>
+
                 <Button variant="outline" className="text-red-600 hover:text-red-700 justify-start" onClick={handleDeactivate}>
                   <UserX className="h-4 w-4 mr-2" />
                   Deactivate Account
