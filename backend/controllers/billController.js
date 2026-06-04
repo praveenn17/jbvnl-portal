@@ -53,39 +53,6 @@ const getBillById = async (req, res) => {
   }
 };
 
-// @desc    Pay a bill
-// @route   POST /api/bills/pay/:id
-// @access  Private
-const payBill = async (req, res) => {
-  try {
-    const bill = await Bill.findById(req.params.id);
-
-    if (bill) {
-      bill.status = 'paid';
-      const updatedBill = await bill.save();
-
-      logAudit({
-        action: 'BILL_PAID',
-        message: `Bill ${updatedBill.billNumber} paid`,
-        actor: req.user._id,
-        actorName: req.user.name,
-        actorEmail: req.user.email,
-        actorRole: req.user.role,
-        targetType: 'bill',
-        targetId: updatedBill._id,
-        targetLabel: updatedBill.billNumber,
-        metadata: { amount: updatedBill.amount },
-        severity: 'info',
-      });
-
-      res.json(updatedBill);
-    } else {
-      res.status(404).json({ message: 'Bill not found' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
 // @desc    Create a bill (Admin/Manager only)
 // @route   POST /api/bills
@@ -237,7 +204,6 @@ const downloadBillPdf = async (req, res) => {
 module.exports = {
   getBills,
   getBillById,
-  payBill,
   createBill,
   downloadBillPdf,
 };

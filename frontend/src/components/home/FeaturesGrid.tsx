@@ -12,7 +12,7 @@ const FeaturesGrid: React.FC<FeaturesGridProps> = ({ onFeatureClick }) => {
     {
       icon: FileText,
       title: "Bill Management",
-      description: "Check bills, view history, and make secure online payments",
+      description: "Check bills and view history",
       color: "bg-primary"
     },
     {

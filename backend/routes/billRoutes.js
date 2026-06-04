@@ -3,7 +3,6 @@ const router = express.Router();
 const {
   getBills,
   getBillById,
-  payBill,
   createBill,
   downloadBillPdf,
 } = require('../controllers/billController');
@@ -20,8 +19,5 @@ router.route('/detail/:id')
 
 router.route('/:id/download')
   .get(protect, downloadBillPdf);
-
-router.route('/pay/:id')
-  .post(protect, payBill);
 
 module.exports = router;

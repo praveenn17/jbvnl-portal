@@ -8,8 +8,8 @@ const Footer: React.FC = () => {
 
   const isConsumer = user?.role === 'consumer';
 
-  const handleBillPayment = () => {
-    navigate(isConsumer ? '/consumer/six-months' : '/bill-payment');
+  const handleBillHistory = () => {
+    navigate('/consumer/six-months');
   };
 
   const handleNewConnection = () => {
@@ -45,7 +45,7 @@ const Footer: React.FC = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><button onClick={handleBillPayment} className="hover:text-white transition-colors">Bill Payment</button></li>
+                <li><button onClick={handleBillHistory} className="hover:text-white transition-colors">Bill History</button></li>
                 <li><button onClick={handleNewConnection} className="hover:text-white transition-colors">New Connection</button></li>
                 <li><button onClick={handleComplaintStatus} className="hover:text-white transition-colors">Complaint Status</button></li>
                 <li><button onClick={handleTariffRates} className="hover:text-white transition-colors">Tariff Rates</button></li>

@@ -98,12 +98,6 @@ const BillDetails: React.FC = () => {
               <Download className="h-4 w-4 mr-2" />
               Download PDF
             </Button>
-            {bill.status === 'pending' && (
-              <Button onClick={() => navigate('/consumer/payment', { state: { billId: bill._id || bill.id } })} className="bg-secondary hover:bg-secondary-600">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Pay Now
-              </Button>
-            )}
           </div>
         </div>
 
@@ -191,9 +185,9 @@ const BillDetails: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-yellow-800">Payment Due</p>
+                    <p className="font-medium text-yellow-800">Pending Bill</p>
                     <p className="text-sm text-yellow-700">
-                      Please pay your bill by {new Date(bill.dueDate).toLocaleDateString()} to avoid late fees.
+                      Your bill is currently pending.
                     </p>
                   </div>
                 </div>
@@ -207,11 +201,6 @@ const BillDetails: React.FC = () => {
               >
                 Raise Billing Concern
               </Button>
-              {bill.status === 'pending' && (
-                <Button onClick={() => navigate('/consumer/payment', { state: { billId: bill._id || bill.id } })} className="bg-secondary hover:bg-secondary-600">
-                  Pay This Bill
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>

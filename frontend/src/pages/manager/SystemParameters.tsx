@@ -293,7 +293,6 @@ const SystemParameters: React.FC = () => {
                   <li>• Due date calculation: 21 days from bill generation</li>
                   <li>• Late fee: 2% per month after due date</li>
                   <li>• Reconnection fee: ₹200 for residential, ₹500 commercial</li>
-                  <li>• Payment gateway integration: Razorpay, PayU, CCAvenue</li>
                   <li>• Auto-debit setup: 65% consumers enrolled</li>
                 </ul>
               </div>

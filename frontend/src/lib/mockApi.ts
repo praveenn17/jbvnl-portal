@@ -33,19 +33,6 @@ class RealApi {
     return await response.json();
   }
 
-  async payBill(id: string): Promise<Bill> {
-    const response = await fetch(getApiUrl(`/api/bills/pay/${id}`), {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        ...getAuthHeader() 
-      }
-    });
-    
-    if (!response.ok) throw new Error('Payment failed');
-    return await response.json();
-  }
-
   // Complaints
   async getComplaints(consumerNumber?: string): Promise<Complaint[]> {
     const response = await fetch(getApiUrl('/api/complaints'), {

@@ -188,20 +188,7 @@ const SixMonthsDetails: React.FC = () => {
     });
   };
 
-  const handlePayNow = (data: typeof monthlyData[0]) => {
-    navigate('/consumer/payment', {
-      state: {
-        billId: data.id,
-        billNumber: data.billNumber,
-        billingPeriod: data.month,
-        amount: data.amount,
-        units: data.units,
-        status: data.status,
-        dueDate: data.dueDate,
-        consumerNumber: data.consumerNumber,
-      },
-    });
-  };
+
 
   // ── Summary stat cards config ──────────────────────────────────────────────
   const summaryCards = [
@@ -305,16 +292,6 @@ const SixMonthsDetails: React.FC = () => {
 
                     {/* Action button */}
                     <div className="flex justify-end">
-                      {isUnpaid(data.status) ? (
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 gap-1.5"
-                          onClick={() => handlePayNow(data)}
-                        >
-                          <CreditCard className="h-3.5 w-3.5" />
-                          Pay Now
-                        </Button>
-                      ) : (
                         <Button
                           size="sm"
                           variant="outline"
@@ -324,7 +301,6 @@ const SixMonthsDetails: React.FC = () => {
                           <Download className="h-3.5 w-3.5" />
                           Download Bill
                         </Button>
-                      )}
                     </div>
                   </div>
                 ))}

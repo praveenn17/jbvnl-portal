@@ -94,11 +94,7 @@ const ConsumerDashboard: React.FC = () => {
     }
   };
 
-  // ── Pay bill handler ───────────────────────────────────────────────────────
 
-  const handlePayBill = (billId: string) => {
-    navigate('/consumer/payment', { state: { billId } });
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -260,7 +256,7 @@ const ConsumerDashboard: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Button onClick={() => navigate('/consumer/six-months')} className="h-16 bg-primary hover:bg-primary/90">
           <FileText className="h-5 w-5 mr-2" />
-          Bill Payment
+          Bill History
         </Button>
         <Button onClick={() => navigate('/consumer/new-connection')} variant="outline" className="h-16">
           <Plus className="h-5 w-5 mr-2" />
@@ -334,11 +330,6 @@ const ConsumerDashboard: React.FC = () => {
                       <Button variant="outline" size="sm" onClick={() => navigate(`/consumer/six-months`)}>
                         View Details
                       </Button>
-                      {['pending', 'unpaid', 'overdue'].includes(bill.status.toLowerCase()) && (
-                        <Button size="sm" className="bg-secondary hover:bg-secondary/90" onClick={() => handlePayBill(bill._id || bill.id)}>
-                          Pay Now
-                        </Button>
-                      )}
                     </div>
                   </div>
                 </CardContent>
