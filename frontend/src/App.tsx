@@ -11,14 +11,12 @@ import SessionGuard from "./components/auth/SessionGuard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
-import BillPayment from "./pages/BillPayment";
 import NewConnection from "./pages/NewConnection";
 import ComplaintStatus from "./pages/ComplaintStatus";
 import TariffRates from "./pages/TariffRates";
 import LearnMore from "./pages/LearnMore";
 import ConsumerProfile from "./pages/consumer/ConsumerProfile";
 import BillDetails from "./pages/consumer/BillDetails";
-import PaymentPage from "./pages/consumer/PaymentPage";
 import ConsumerSettings from "./pages/consumer/ConsumerSettings";
 import FormPages from "./pages/consumer/FormPages";
 import ComplaintTracking from "./pages/consumer/ComplaintTracking";
@@ -51,7 +49,6 @@ const App = () => (
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
-                <Route path="/bill-payment" element={<BillPayment />} />
                 <Route path="/new-connection" element={<NewConnection />} />
                 <Route path="/complaint-status" element={<ComplaintStatus />} />
                 <Route path="/tariff-rates" element={<TariffRates />} />
@@ -63,7 +60,6 @@ const App = () => (
                 {/* Consumer-only routes */}
                 <Route path="/consumer/profile" element={<ProtectedRoute allowedRoles={['consumer']}><ConsumerProfile /></ProtectedRoute>} />
                 <Route path="/consumer/bill-details/:billId" element={<ProtectedRoute allowedRoles={['consumer']}><BillDetails /></ProtectedRoute>} />
-                <Route path="/consumer/payment" element={<ProtectedRoute allowedRoles={['consumer']}><PaymentPage /></ProtectedRoute>} />
                 <Route path="/consumer/settings" element={<ProtectedRoute allowedRoles={['consumer']}><ConsumerSettings /></ProtectedRoute>} />
                 <Route path="/consumer/form/:formType" element={<ProtectedRoute allowedRoles={['consumer']}><FormPages /></ProtectedRoute>} />
                 <Route path="/consumer/complaint-tracking/:complaintId" element={<ProtectedRoute allowedRoles={['consumer']}><ComplaintTracking /></ProtectedRoute>} />
@@ -84,6 +80,7 @@ const App = () => (
                 <Route path="/admin/revenue-details" element={<ProtectedRoute allowedRoles={['admin']}><RevenueDetails /></ProtectedRoute>} />
                 <Route path="/admin/pending-approvals" element={<ProtectedRoute allowedRoles={['admin']}><PendingApprovals /></ProtectedRoute>} />
                 <Route path="/admin/active-complaints" element={<ProtectedRoute allowedRoles={['admin']}><ActiveComplaints /></ProtectedRoute>} />
+
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
