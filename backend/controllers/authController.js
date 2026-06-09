@@ -1,18 +1,3 @@
-/**
- * Auth Controller — JBVNL Portal
- * --------------------------------
- * Handles user registration, OTP verification, login, and admin management.
- *
- * Security principles applied:
- *  - Passwords must be strong (validated before creation).
- *  - OTPs are stored as bcrypt hashes — never as plain text.
- *  - OTPs expire in 10 minutes with a maximum of 5 attempts.
- *  - Resend OTP enforces a 60-second cooldown.
- *  - Users cannot login until their email is verified.
- *  - Login errors never reveal whether email or password is wrong.
- *  - No bypass codes, no demo passwords, no master keys.
- */
-
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -20,15 +5,11 @@ const User = require('../models/User');
 const { sendOtpEmail, sendPasswordResetEmail } = require('../utils/emailService');
 const { logAudit } = require('../utils/auditLogger');
 const notificationService = require('../utils/notificationService');
-
-// ── Constants ─────────────────────────────────────────────────────────────────
 const OTP_EXPIRY_MS = 10 * 60 * 1000;       // 10 minutes
 const OTP_MAX_ATTEMPTS = 5;                  // max failed attempts per OTP
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;   // 60-second resend cooldown
 const JWT_EXPIRY = '30d';
 const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
-
-// Simple blocklist of obviously weak/common passwords
 const COMMON_PASSWORDS = [
   'password', 'password1', 'password123',
   '12345678', '123456789', '1234567890',
@@ -37,26 +18,11 @@ const COMMON_PASSWORDS = [
   'qwerty123', 'letmein1', 'welcome1',
   'jbvnl123', 'jbvnl@123',
 ];
-
-// ── Helper: Generate JWT ──────────────────────────────────────────────────────
 const generateToken = (id, tokenVersion = 0, activeSessionId = null) =>
   jwt.sign({ id, tokenVersion, activeSessionId }, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRY });
-
-// ── Helper: Validate email format ─────────────────────────────────────────────
 const isValidEmail = (email) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 
-// ── Helper: Validate password strength ────────────────────────────────────────
-/**
- * Returns an error string if password is weak, or null if it's strong.
- * Requirements:
- *   - At least 8 characters
- *   - At least 1 uppercase letter (A-Z)
- *   - At least 1 lowercase letter (a-z)
- *   - At least 1 digit (0-9)
- *   - At least 1 special character (!@#$%^&* etc.)
- *   - Not in the common-password blocklist
- */
 const validatePassword = (password) => {
   if (!password || password.length < 8) {
     return 'Password must be at least 8 characters long.';
@@ -78,12 +44,8 @@ const validatePassword = (password) => {
   }
   return null; // Valid
 };
-
-// ── Helper: Generate a 6-digit numeric OTP string ─────────────────────────────
 const generateOtp = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
-
-// ── Helper: Parse Browser from User-Agent ─────────────────────────────────────
 const parseBrowser = (userAgent) => {
   if (!userAgent) return 'Unknown Browser';
   if (userAgent.includes('Firefox')) return 'Firefox';
@@ -92,8 +54,6 @@ const parseBrowser = (userAgent) => {
   if (userAgent.includes('Safari')) return 'Safari';
   return 'Unknown Browser';
 };
-
-// ── Helper: Parse Device from User-Agent ──────────────────────────────────────
 const parseDevice = (userAgent) => {
   if (!userAgent) return 'Unknown Device';
   if (userAgent.includes('Mobi')) return 'Mobile';
@@ -103,17 +63,9 @@ const parseDevice = (userAgent) => {
   if (userAgent.includes('Linux')) return 'Linux PC';
   return 'Desktop';
 };
-
-// ── Helper: Get Client IP ─────────────────────────────────────────────────────
 const getClientIp = (req) => {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Send OTP to email (first step of registration)
-// @route   POST /api/auth/send-otp
-// @access  Public
-// ═══════════════════════════════════════════════════════════════════════════════
 const sendOtp = async (req, res) => {
   let { email } = req.body;
 
@@ -128,7 +80,6 @@ const sendOtp = async (req, res) => {
   }
 
   try {
-    // Check if email is already fully registered and verified (not just pending OTP)
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.name !== '__otp_pending__' && existingUser.isEmailVerified) {
       return res.status(400).json({
@@ -144,8 +95,6 @@ const sendOtp = async (req, res) => {
     const otpHash = await bcrypt.hash(otp, 10);
     const otpExpires = new Date(Date.now() + OTP_EXPIRY_MS);
 
-    // Store OTP in a pending user record (upsert by email).
-    // We use a special status='otp_pending' doc that is replaced on real registration.
     await User.findOneAndUpdate(
       { email },
       {
@@ -171,12 +120,11 @@ const sendOtp = async (req, res) => {
     console.warn(`║  Email : ${email.padEnd(34)}║`);
     console.warn(`║  OTP   : ${otp.padEnd(34)}║`);
     if (isDev) {
-    console.warn('║  Bypass OTP 111000 also accepted             ║');
+      console.warn('║  Bypass OTP 111000 also accepted             ║');
     }
     console.warn('╚══════════════════════════════════════════════╝');
     console.warn('');
 
-    // Send OTP via email (non-blocking in dev, required in production)
     const emailSent = await sendOtpEmail(email, otp).catch(() => false);
 
     if (!emailSent && process.env.NODE_ENV === 'production') {
@@ -196,12 +144,6 @@ const sendOtp = async (req, res) => {
     return res.status(500).json({ message: `Server error: ${err.message}` });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Resend OTP (with cooldown enforcement)
-// @route   POST /api/auth/resend-otp
-// @access  Public
-// ═══════════════════════════════════════════════════════════════════════════════
 const resendOtp = async (req, res) => {
   let { email } = req.body;
 
@@ -224,7 +166,6 @@ const resendOtp = async (req, res) => {
       });
     }
 
-    // If the user is already verified and registered fully, no need to resend
     if (pendingRecord.isEmailVerified && pendingRecord.name !== '__otp_pending__') {
       return res.status(400).json({
         message: 'This email is already verified. Please login.',
@@ -269,12 +210,6 @@ const resendOtp = async (req, res) => {
     return res.status(500).json({ message: 'Server error. Please try again.' });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Verify OTP sent to email
-// @route   POST /api/auth/verify-email
-// @access  Public
-// ═══════════════════════════════════════════════════════════════════════════════
 const verifyEmail = async (req, res) => {
   let { email, otp } = req.body;
 
@@ -302,7 +237,6 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // Check if already verified
     if (record.isEmailVerified && record.name !== '__otp_pending__') {
       return res.status(400).json({ message: 'This email is already verified.' });
     }
@@ -321,25 +255,21 @@ const verifyEmail = async (req, res) => {
       return res.json({ success: true, message: 'Email verified successfully. Please complete your registration.' });
     }
 
-    // Check OTP attempt limit
     if (record.emailOtpAttempts >= OTP_MAX_ATTEMPTS) {
       return res.status(429).json({
         message: `Too many incorrect attempts. Please request a new verification code.`,
       });
     }
 
-    // Check expiry
     if (!record.emailOtpExpires || Date.now() > record.emailOtpExpires.getTime()) {
       return res.status(400).json({
         message: 'Verification code has expired. Please request a new one.',
       });
     }
 
-    // Compare OTP with stored hash
     const isOtpValid = await bcrypt.compare(otp, record.emailOtpHash);
 
     if (!isOtpValid) {
-      // Increment attempt counter
       record.emailOtpAttempts += 1;
       await record.save();
 
@@ -351,7 +281,6 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // OTP is valid — mark as email-verified in the pending record
     // (The actual user account is fully created when register() is called next)
     record.emailOtpHash = null;
     record.emailOtpExpires = null;
@@ -365,16 +294,8 @@ const verifyEmail = async (req, res) => {
     return res.status(500).json({ message: 'Server error. Please try again.' });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Register a new user (requires prior OTP verification)
-// @route   POST /api/auth/register
-// @access  Public
-// ═══════════════════════════════════════════════════════════════════════════════
 const registerUser = async (req, res) => {
   let { name, email, password, role, consumerNumber, address, phone, employeeId, department } = req.body;
-
-  // ── Input validation ────────────────────────────────────────────────────────
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Name, email, and password are required.' });
   }
@@ -390,13 +311,11 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: 'Invalid email format.' });
   }
 
-  // Validate password strength
   const passwordError = validatePassword(password);
   if (passwordError) {
     return res.status(400).json({ message: passwordError });
   }
 
-  // Validate role
   const allowedRoles = ['consumer', 'manager'];
   const chosenRole = role && allowedRoles.includes(role) ? role : 'consumer';
   // Note: 'admin' role cannot be self-registered — only seeded via seedAdmin.js
@@ -435,22 +354,17 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Make sure it's still a pending record (not a fully registered user)
     if (pendingRecord.name !== '__otp_pending__') {
       return res.status(400).json({
         message: 'An account with this email already exists. Please login.',
       });
     }
-
-    // ── Update the pending record with real user data ─────────────────────────
-    // The pre-save hook will hash the password automatically.
     pendingRecord.name = name;
     pendingRecord.password = password; // Will be hashed by pre-save hook
     pendingRecord.role = chosenRole;
     let assignedStatus = 'pending';
 
     if (chosenRole === 'consumer') {
-      // Fetch AdminSettings to check auto-approval threshold
       const AdminSettings = require('../models/AdminSettings');
       const settings = await AdminSettings.findOne().sort({ createdAt: 1 });
       const threshold = settings?.autoApprovalThreshold ?? 5;
@@ -474,7 +388,7 @@ const registerUser = async (req, res) => {
     pendingRecord.status = assignedStatus;
     pendingRecord.isEmailVerified = true;
     pendingRecord.phone = phone || undefined;
-    
+
     if (chosenRole === 'consumer') {
       pendingRecord.consumerNumber = consumerNumber;
       pendingRecord.address = address;
@@ -491,7 +405,6 @@ const registerUser = async (req, res) => {
 
     console.warn(`[REGISTER] Success: ${email} as ${savedUser.role} (status: ${savedUser.status})`);
 
-    // Audit Log for successful registration
     const metadata = {};
     if (savedUser.role === 'consumer') {
       metadata.consumerNumber = savedUser.consumerNumber;
@@ -514,7 +427,6 @@ const registerUser = async (req, res) => {
       severity: 'info',
     });
 
-    // Notify admins of new pending manager or consumer
     if (savedUser.status === 'pending') {
       const title = savedUser.role === 'manager' ? 'New Manager Registration' : 'New Consumer Pending Approval';
       const message = savedUser.role === 'manager'
@@ -545,12 +457,6 @@ const registerUser = async (req, res) => {
     return res.status(500).json({ message: 'Server error. Please try again.' });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Authenticate user and get token (login)
-// @route   POST /api/auth/login
-// @access  Public
-// ═══════════════════════════════════════════════════════════════════════════════
 const authUser = async (req, res) => {
   let { email, password, role } = req.body;
 
@@ -568,7 +474,6 @@ const authUser = async (req, res) => {
   try {
     const user = await User.findOne({ email });
 
-    // Generic failure for non-existent email (don't reveal "email not found")
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
@@ -578,7 +483,6 @@ const authUser = async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
-    // Check email verification
     if (!user.isEmailVerified) {
       return res.status(403).json({
         message: 'Please verify your email before logging in.',
@@ -586,37 +490,29 @@ const authUser = async (req, res) => {
       });
     }
 
-    // Verify password using bcrypt
     const isPasswordCorrect = await user.comparePassword(password);
 
     if (!isPasswordCorrect) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
-    // Role mismatch check (user selected wrong role on login form)
     if (role && user.role !== role) {
       return res.status(401).json({
         message: 'Invalid email, password, or role. Please check your credentials and try again.',
       });
     }
 
-    // Manager approval check
     if (user.role === 'manager' && user.status !== 'approved') {
       return res.status(403).json({
         message: 'Your manager account is pending admin approval. Please wait for approval.',
       });
     }
 
-    // =========================================================================
-    // Single Active Session - Core Logic
-    // =========================================================================
-    
-    // Check if user has an existing active session
     if (user.activeSessionId) {
       // Stale session protection: if the last heartbeat is older than 30 minutes, automatically replace
       const THIRTY_MINUTES = 30 * 60 * 1000;
       const isStale = user.lastSeenAt && (Date.now() - user.lastSeenAt.getTime() > THIRTY_MINUTES);
-      
+
       if (!isStale) {
         // Active session exists and is not stale. Prompt for takeover.
         logAudit({
@@ -630,7 +526,7 @@ const authUser = async (req, res) => {
           targetId: user._id,
           severity: 'info',
         });
-        
+
         return res.json({
           requiresSessionTakeover: true,
           sessionInfo: {
@@ -642,7 +538,7 @@ const authUser = async (req, res) => {
           }
         });
       }
-      
+
       // If stale, log the automatic replacement and fall through to create a new session
       logAudit({
         action: 'SESSION_STALE_AUTO_REPLACED',
@@ -665,7 +561,7 @@ const authUser = async (req, res) => {
     const device = parseDevice(userAgent);
     // Location fallback to IP if true geolocation isn't available
     const location = clientIp !== 'unknown' ? `IP: ${clientIp}` : 'Unknown Location';
-    
+
     user.activeSessionId = newSessionId;
     user.lastLoginAt = new Date();
     user.lastLoginIp = clientIp;
@@ -673,12 +569,11 @@ const authUser = async (req, res) => {
     user.lastLoginBrowser = browser;
     user.lastLoginLocation = location;
     user.lastSeenAt = new Date(); // initialize heartbeat
-    
+
     await user.save();
 
     console.warn(`[LOGIN] Success: ${email} (${user.role})`);
 
-    // Audit Log
     logAudit({
       action: 'LOGIN_SUCCESS',
       message: `User logged in successfully`,
@@ -709,12 +604,6 @@ const authUser = async (req, res) => {
     return res.status(500).json({ message: 'Server error. Please try again.' });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Get all pending users (managers awaiting approval)
-// @route   GET /api/auth/users/pending
-// @access  Private/Admin
-// ═══════════════════════════════════════════════════════════════════════════════
 const getPendingUsers = async (req, res) => {
   try {
     const users = await User.find({
@@ -726,12 +615,6 @@ const getPendingUsers = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Update user status (approve / reject / hold)
-// @route   PUT /api/auth/users/:id/status
-// @access  Private/Admin
-// ═══════════════════════════════════════════════════════════════════════════════
 const updateUserStatus = async (req, res) => {
   const { status } = req.body;
   const allowedStatuses = ['approved', 'rejected', 'hold', 'pending'];
@@ -750,7 +633,6 @@ const updateUserStatus = async (req, res) => {
     user.status = status;
     const updatedUser = await user.save();
 
-    // Trigger Notification for the user being approved/rejected
     if (status === 'approved') {
       notificationService.createNotificationForUser(updatedUser._id, {
         title: 'Account Approved',
@@ -771,7 +653,6 @@ const updateUserStatus = async (req, res) => {
       });
     }
 
-    // Audit log
     const actionMap = {
       approved: 'USER_APPROVED',
       rejected: 'USER_REJECTED',
@@ -797,12 +678,6 @@ const updateUserStatus = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Get user profile
-// @route   GET /api/auth/profile
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
@@ -830,12 +705,6 @@ const getUserProfile = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Update user profile
-// @route   PATCH /api/auth/profile
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const updateProfile = async (req, res) => {
   const { name, phone, address } = req.body;
 
@@ -893,12 +762,6 @@ const updateProfile = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Change Password
-// @route   PATCH /api/auth/change-password
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const changePassword = async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
 
@@ -947,12 +810,6 @@ const changePassword = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Update consumer preferences
-// @route   PATCH /api/auth/preferences
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const updatePreferences = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -979,12 +836,6 @@ const updatePreferences = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Request account deactivation
-// @route   POST /api/auth/deactivate
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const deactivateAccount = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -1021,12 +872,6 @@ const deactivateAccount = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Request account deletion
-// @route   POST /api/auth/delete-request
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const deleteAccountRequest = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -1063,12 +908,6 @@ const deleteAccountRequest = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Logout from all devices
-// @route   PATCH /api/auth/logout-all
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const logoutAllDevices = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -1078,7 +917,6 @@ const logoutAllDevices = async (req, res) => {
     }
 
     user.tokenVersion = (user.tokenVersion || 0) + 1;
-    // Clear session data on logout-all
     user.activeSessionId = null;
     user.lastSeenAt = null;
     await user.save();
@@ -1100,12 +938,6 @@ const logoutAllDevices = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Get all consumers
-// @route   GET /api/auth/users/consumers
-// @access  Private (Manager/Admin)
-// ═══════════════════════════════════════════════════════════════════════════════
 const getConsumers = async (req, res) => {
   try {
     const consumers = await User.find({ role: 'consumer', status: 'approved' })
@@ -1117,17 +949,6 @@ const getConsumers = async (req, res) => {
   }
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Forgot Password — generate a reset token and email a reset link
-// @route   POST /api/auth/forgot-password
-// @access  Public
-//
-// Security:
-//  - Admin accounts are silently excluded (no special error message).
-//  - A generic response is ALWAYS returned to prevent email enumeration.
-//  - The raw token is sent only in the email; only its SHA-256 hash is stored.
-//  - Token expires in 15 minutes.
-// ═══════════════════════════════════════════════════════════════════════════════
 const forgotPassword = async (req, res) => {
   // Generic message — used in ALL branches to prevent email enumeration.
   const GENERIC_MSG = 'If an account with that email exists and is eligible, a password reset link has been sent.';
@@ -1139,9 +960,8 @@ const forgotPassword = async (req, res) => {
   }
 
   email = email.toLowerCase().trim();
-  role  = role.toLowerCase().trim();
+  role = role.toLowerCase().trim();
 
-  // Only consumers and managers can reset via this flow.
   if (!['consumer', 'manager'].includes(role)) {
     // Return generic message even for admin — never reveal exclusion.
     return res.json({ message: GENERIC_MSG });
@@ -1161,8 +981,7 @@ const forgotPassword = async (req, res) => {
   }
 
   try {
-    // Find user — must be a real registered user (not an OTP placeholder),
-    // match the claimed role, and have an approved status.
+
     const user = await User.findOne({
       email,
       role,
@@ -1176,32 +995,27 @@ const forgotPassword = async (req, res) => {
       return res.json({ message: GENERIC_MSG });
     }
 
-    // Generate a cryptographically secure 32-byte (64-char hex) raw token.
     const rawToken = crypto.randomBytes(32).toString('hex');
 
     // Hash the raw token with SHA-256 before persisting — prevents DB leakage.
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-    // Persist hashed token + expiry.
-    user.resetPasswordToken   = hashedToken;
+    user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
     await user.save();
 
     // Build the reset URL using the environment variable (never hardcoded).
     const resetUrl = `${frontendUrl}/reset-password/${rawToken}`;
 
-    // Send the branded email (non-blocking in dev if SMTP not configured).
     const emailSent = await sendPasswordResetEmail(user.email, user.name, resetUrl);
 
     if (!emailSent && process.env.NODE_ENV === 'production') {
-      // Roll back token so user can try again immediately.
-      user.resetPasswordToken   = null;
+      user.resetPasswordToken = null;
       user.resetPasswordExpires = null;
       await user.save();
       return res.status(500).json({ message: 'Failed to send reset email. Please try again.' });
     }
 
-    // Audit log — includes IP for rate-limit analysis.
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
     logAudit({
       action: 'PASSWORD_RESET_REQUESTED',
@@ -1216,7 +1030,6 @@ const forgotPassword = async (req, res) => {
       severity: 'info',
     });
 
-    // In-app notification for the user.
     notificationService.createNotificationForUser(user._id, {
       title: 'Password Reset Requested',
       message: 'A password reset link has been sent to your registered email address. It expires in 15 minutes.',
@@ -1233,18 +1046,6 @@ const forgotPassword = async (req, res) => {
     return res.status(500).json({ message: 'Server error. Please try again.' });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Reset Password — validate token and set new password
-// @route   POST /api/auth/reset-password/:token
-// @access  Public
-//
-// Security:
-//  - Token is hashed with SHA-256 before DB lookup — raw token never stored.
-//  - Admin accounts are excluded from this flow.
-//  - tokenVersion is incremented, invalidating ALL previously issued JWTs.
-//  - Token fields are cleared after use, preventing token reuse.
-// ═══════════════════════════════════════════════════════════════════════════════
 const resetPassword = async (req, res) => {
   const { token } = req.params;
   const { newPassword, confirmPassword } = req.body;
@@ -1261,17 +1062,14 @@ const resetPassword = async (req, res) => {
     return res.status(400).json({ message: 'Passwords do not match.' });
   }
 
-  // Validate password strength (reuse existing helper).
   const passwordError = validatePassword(newPassword);
   if (passwordError) {
     return res.status(400).json({ message: passwordError });
   }
 
   try {
-    // Hash the incoming raw token to compare with the stored hash.
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Find the user whose stored hash matches AND token hasn't expired.
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() },
@@ -1284,24 +1082,19 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Set the new password — pre-save hook will hash it with bcrypt.
     user.password = newPassword;
 
     // Clear the reset token fields to prevent reuse.
-    user.resetPasswordToken   = null;
+    user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
 
-    // Increment tokenVersion — immediately invalidates ALL existing JWTs for this user.
-    // Every device the user is logged into will be forced to log in again.
     user.tokenVersion = (user.tokenVersion || 0) + 1;
-    
-    // Also explicitly destroy the active session
+
     user.activeSessionId = null;
     user.lastSeenAt = null;
 
     await user.save();
 
-    // Audit log.
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
     logAudit({
       action: 'PASSWORD_RESET_COMPLETED',
@@ -1316,7 +1109,6 @@ const resetPassword = async (req, res) => {
       severity: 'info',
     });
 
-    // In-app notification for the user.
     notificationService.createNotificationForUser(user._id, {
       title: 'Password Changed Successfully',
       message: 'Your password was changed successfully. All active sessions have been signed out.',
@@ -1333,12 +1125,6 @@ const resetPassword = async (req, res) => {
     return res.status(500).json({ message: 'Server error. Please try again.' });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Takeover Session
-// @route   POST /api/auth/takeover-session
-// @access  Public
-// ═══════════════════════════════════════════════════════════════════════════════
 const takeoverSession = async (req, res) => {
   let { email, password, role } = req.body;
 
@@ -1361,7 +1147,6 @@ const takeoverSession = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
-    // Generate new session ID
     const newSessionId = crypto.randomUUID();
     const clientIp = getClientIp(req);
     const userAgent = req.headers['user-agent'];
@@ -1379,7 +1164,6 @@ const takeoverSession = async (req, res) => {
 
     await user.save();
 
-    // Audit Log
     logAudit({
       action: 'SESSION_TAKEOVER_COMPLETED',
       message: `Session takeover completed. Previous session terminated.`,
@@ -1392,7 +1176,6 @@ const takeoverSession = async (req, res) => {
       severity: 'warning',
     });
 
-    // Notify user in-app
     notificationService.createNotificationForUser(user._id, {
       title: 'Session Taken Over',
       message: 'Your account was logged into from another device. Your previous session was terminated.',
@@ -1420,31 +1203,18 @@ const takeoverSession = async (req, res) => {
     return res.status(500).json({ message: 'Server error. Please try again.' });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Get Session Status (Polling Endpoint)
-// @route   GET /api/auth/session-status
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const getSessionStatus = async (req, res) => {
   try {
     const user = req.user; // populated by authMiddleware which already checks activeSessionId
-    
-    // Update heartbeat
+
     user.lastSeenAt = new Date();
     await user.save();
-    
+
     return res.json({ valid: true });
   } catch (error) {
     return res.status(500).json({ valid: false, message: error.message });
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// @desc    Logout User (explicitly clear session)
-// @route   POST /api/auth/logout
-// @access  Private
-// ═══════════════════════════════════════════════════════════════════════════════
 const logoutUser = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);

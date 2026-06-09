@@ -11,14 +11,12 @@ import {
 import { Bill, Complaint } from '../../types';
 import {
   Calendar, CreditCard, FileText, MessageSquare, Plus, AlertCircle,
-  CheckCircle, Clock, User, Settings, Power, Edit, Shield, Smartphone, Wifi,
+  CheckCircle, Clock, User, Settings, Shield, Smartphone, Wifi,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockApi } from '../../lib/mockApi';
 import { generateMockBills, deriveBillAnalytics } from '@/pages/consumer/SixMonthsDetails';
-
-// ── Component ────────────────────────────────────────────────────────────────
 
 const ConsumerDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -61,21 +59,16 @@ const ConsumerDashboard: React.FC = () => {
     fetchData();
   }, [user]);
 
-  // ── Chart data: map 6-month dataset to chart format ────────────────────────
   const chartData = sixMonthDs.map(b => ({
     month: new Date(b.dueDate).toLocaleString('en-IN', { month: 'short' }),
     amount: b.amount,
     units: b.units,
   }));
 
-  // ── Analytics: single source of truth ─────────────────────────────────────
   const analytics = deriveBillAnalytics(sixMonthDs);
 
-  // Latest bill (most recent, by sorted order)
   const latestBill = sixMonthDs.length > 0 ? sixMonthDs[sixMonthDs.length - 1] : null;
 
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
 
   const getBillStatusColor = (status: string) => {
     switch (status) {
@@ -98,7 +91,6 @@ const ConsumerDashboard: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Consumer Info Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
@@ -121,7 +113,6 @@ const ConsumerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Consumer Basic Details Card */}
       <Card>
         <CardHeader>
           <CardTitle>Consumer Details</CardTitle>
@@ -155,7 +146,6 @@ const ConsumerDashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         <Card className="hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -252,7 +242,6 @@ const ConsumerDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Button onClick={() => navigate('/consumer/six-months')} className="h-16 bg-primary hover:bg-primary/90">
           <FileText className="h-5 w-5 mr-2" />
@@ -272,7 +261,6 @@ const ConsumerDashboard: React.FC = () => {
         </Button>
       </div>
 
-      {/* Main Content Tabs */}
       <Tabs defaultValue="bills" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="bills">My Bills</TabsTrigger>
@@ -281,7 +269,6 @@ const ConsumerDashboard: React.FC = () => {
           <TabsTrigger value="profile">Connection Info</TabsTrigger>
         </TabsList>
 
-        {/* ── Bills Tab ─────────────────────────────────────────────────────── */}
         <TabsContent value="bills" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <div>
@@ -343,7 +330,6 @@ const ConsumerDashboard: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* ── Complaints Tab ────────────────────────────────────────────────── */}
         <TabsContent value="complaints" className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
@@ -393,7 +379,6 @@ const ConsumerDashboard: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* ── Analytics Tab (NEW) ───────────────────────────────────────────── */}
         <TabsContent value="analytics" className="space-y-6">
           <div>
             <h3 className="text-lg font-semibold">Usage Analytics</h3>
@@ -401,7 +386,6 @@ const ConsumerDashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Monthly Bill Amount Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Monthly Bill Amount (₹)</CardTitle>
@@ -424,7 +408,6 @@ const ConsumerDashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Units Consumed Trend */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Units Consumed (kWh)</CardTitle>
@@ -460,7 +443,6 @@ const ConsumerDashboard: React.FC = () => {
             </Card>
           </div>
 
-          {/* Summary stats row — driven by shared analytics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'Avg Monthly Bill', value: `₹${analytics.averageAmount.toLocaleString()}` },
@@ -478,7 +460,6 @@ const ConsumerDashboard: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* ── Connection Info Tab ───────────────────────────────────────────── */}
         <TabsContent value="profile">
           <Card>
             <CardHeader>
@@ -516,7 +497,6 @@ const ConsumerDashboard: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Services Section */}
       <div className="space-y-4">
         <div>
           <h3 className="text-lg font-semibold">Available Services</h3>

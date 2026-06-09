@@ -12,7 +12,6 @@ const getAuthHeader = () => {
 };
 
 class RealApi {
-  // Bills
   async getBills(consumerNumber?: string): Promise<Bill[]> {
     if (!consumerNumber) return [];
     
@@ -57,7 +56,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Meters
   async getMeters(params?: { isSimulated?: boolean; consumerNumber?: string }): Promise<any[]> {
     const qs = new URLSearchParams();
     if (params?.isSimulated !== undefined) qs.set('isSimulated', String(params.isSimulated));
@@ -110,7 +108,6 @@ class RealApi {
     await fetch(getApiUrl(`/api/meters/${meterId}`), { method: 'DELETE', headers: { ...getAuthHeader() } });
   }
 
-  // Tariff
   async getTariff(): Promise<any> {
     const response = await fetch(getApiUrl('/api/tariff'), { headers: { ...getAuthHeader() } });
     if (!response.ok) throw new Error('Failed to fetch tariff');
@@ -130,7 +127,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Payments (Razorpay)
   async createPaymentOrder(billId: string): Promise<any> {
     const response = await fetch(getApiUrl('/api/payments/create-order'), {
       method: 'POST',
@@ -157,14 +153,12 @@ class RealApi {
     return await response.json();
   }
 
-  // Revenue Stats
   async getRevenueStats(): Promise<any> {
     const response = await fetch(getApiUrl('/api/stats/revenue'), { headers: { ...getAuthHeader() } });
     if (!response.ok) throw new Error('Failed to fetch revenue stats');
     return await response.json();
   }
 
-  // Complaints
   async getComplaints(consumerNumber?: string): Promise<Complaint[]> {
     const response = await fetch(getApiUrl('/api/complaints'), {
       headers: { ...getAuthHeader() }
@@ -245,7 +239,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Service Requests
   async createServiceRequest(data: any): Promise<any> {
     const response = await fetch(getApiUrl('/api/service-requests'), {
       method: 'POST',
@@ -267,7 +260,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Settings
   async getAdminSettings(): Promise<any> {
     const response = await fetch(getApiUrl('/api/settings'), {
       headers: { ...getAuthHeader() }
@@ -295,7 +287,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Dashboard / Analytics Stats
   async getManagerStats(): Promise<{ revenue: number; totalUsers: number; pendingComplaints: number }> {
     const response = await fetch(getApiUrl('/api/stats/manager'), {
       headers: { ...getAuthHeader() }
@@ -308,7 +299,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Notifications
   async getNotifications(): Promise<any[]> {
     const response = await fetch(getApiUrl('/api/notifications'), {
       headers: { ...getAuthHeader() }
@@ -374,7 +364,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Audit Logs
   async getAuditLogs(filters?: Record<string, string>): Promise<{ logs: any[]; total: number; page: number; limit: number }> {
     const queryParams = new URLSearchParams(filters || {}).toString();
     const url = queryParams ? `/api/audit-logs?${queryParams}` : '/api/audit-logs';
@@ -389,7 +378,6 @@ class RealApi {
     return await response.json();
   }
 
-  // Profile & Auth
   async getMyProfile(): Promise<any> {
     const response = await fetch(getApiUrl('/api/auth/profile'), {
       headers: { ...getAuthHeader() }
@@ -476,7 +464,6 @@ class RealApi {
     return await response.json();
   }
 
-  // ── New Methods for Manager & Admin Messages ──────────────────────────────
   async getConsumersForManager(): Promise<User[]> {
     const response = await fetch(getApiUrl('/api/auth/users/consumers'), { headers: getAuthHeader() });
     if (!response.ok) throw new Error('Failed to fetch consumers');
@@ -520,7 +507,6 @@ class RealApi {
     return await response.json();
   }
 
-  // ── Two-Way Conversation System ────────────────────────────────────────
   async createConversation(data: { subject: string; message: string; priority?: string; category?: string }): Promise<any> {
     const response = await fetch(getApiUrl('/api/messages/conversations'), {
       method: 'POST',

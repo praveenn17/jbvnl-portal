@@ -21,13 +21,6 @@ import AuditLogs from './AuditLogs';
 import ConversationChatModal from '../chat/ConversationChatModal';
 import { mockApi } from '../../lib/mockApi';
 
-
-const getApiUrl = (url: string) => {
-  const baseURL = import.meta.env.VITE_API_BASE_URL || '';
-  return baseURL + url;
-};
-
-// ── Priority / Status colour helpers ─────────────────────────────────────────
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-green-500/20 text-green-400 border-green-500/30',
   medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
@@ -40,7 +33,6 @@ const STATUS_COLORS: Record<string, string> = {
   closed: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
-// ── MessagesTabContent ────────────────────────────────────────────────────────
 const MessagesTabContent: React.FC<{
   legacyMessages: any[];
   onMarkRead: (id: string) => void;
@@ -74,7 +66,6 @@ const MessagesTabContent: React.FC<{
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Manager Conversations</h3>
@@ -86,7 +77,6 @@ const MessagesTabContent: React.FC<{
         </Button>
       </div>
 
-      {/* Conversation list */}
       {loadingConv ? (
         <div className="text-center py-8 text-muted-foreground">Loading conversations…</div>
       ) : conversations.length === 0 ? (
@@ -136,7 +126,6 @@ const MessagesTabContent: React.FC<{
         </div>
       )}
 
-      {/* Legacy Messages (collapsed) */}
       {safeMessages.length > 0 && (
         <div className="mt-2">
           <button
@@ -209,7 +198,6 @@ const MessagesTabContent: React.FC<{
         </div>
       )}
 
-      {/* Chat Modal */}
       {openChatId && (
         <ConversationChatModal
           conversationId={openChatId}
@@ -221,7 +209,6 @@ const MessagesTabContent: React.FC<{
   );
 };
 
-// ── AdminDashboard ─────────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
   const { pendingUsers, updateUserStatus, user, refreshPendingUsers } = useAuth();
   const { toast } = useToast();
@@ -251,7 +238,6 @@ const AdminDashboard: React.FC = () => {
           mockApi.getConsumersForManager().catch(() => []),
         ]);
 
-        // Real revenue from MongoDB bills
         const revenueData = await mockApi.getRevenueStats().catch(() => null);
         const simCount = await mockApi.getSimulatedMeterCount().catch(() => 0);
         setSimulatedMeters(simCount);
@@ -399,7 +385,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
@@ -408,7 +393,6 @@ const AdminDashboard: React.FC = () => {
         <Badge variant="outline" className="text-sm border-primary/40 text-primary">Category: Admin</Badge>
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         <Card className="hover-scale cursor-pointer border-l-4 border-l-secondary"
           onClick={() => navigate('/admin/pending-approvals')}>
@@ -462,7 +446,6 @@ const AdminDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="approvals" className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="approvals">User Approvals</TabsTrigger>
@@ -473,7 +456,6 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        {/* ── Messages tab ─────────────────────────────────────── */}
         <TabsContent value="messages" className="space-y-4">
           <MessagesTabContent
             legacyMessages={messages}
@@ -482,7 +464,6 @@ const AdminDashboard: React.FC = () => {
           />
         </TabsContent>
 
-        {/* ── User Approvals tab ───────────────────────────────── */}
         <TabsContent value="approvals" className="space-y-4">
           <div className="flex justify-between items-start">
             <div>
@@ -552,7 +533,6 @@ const AdminDashboard: React.FC = () => {
           )}
         </TabsContent>
 
-        {/* ── Complaints tab ───────────────────────────────────── */}
         <TabsContent value="complaints" className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold">Complaint Management</h3>
@@ -595,10 +575,9 @@ const AdminDashboard: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* ── Analytics tab ────────────────────────────────────── */}
         <TabsContent value="analytics" className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Analytics & Reports</h3>
+            <h3 className="text-lg font-semibold text-foreground">Analytics &amp; Reports</h3>
             <p className="text-sm text-muted-foreground">Revenue trends and complaint distribution</p>
           </div>
 
@@ -696,7 +675,6 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="settings">
-          {/* Simulated Meter Warning */}
           {simulatedMeters > 0 && (
             <Card className="mb-6 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
               <CardContent className="pt-4">
@@ -723,7 +701,6 @@ const AdminDashboard: React.FC = () => {
             </Card>
           )}
 
-          {/* Quick Links */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/meter-management')}>
               <CardContent className="pt-4 flex items-center gap-4">
@@ -732,7 +709,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div>
                   <p className="font-semibold">Meter Management</p>
-                  <p className="text-sm text-muted-foreground">Assign & update consumer meters</p>
+                  <p className="text-sm text-muted-foreground">Assign &amp; update consumer meters</p>
                 </div>
               </CardContent>
             </Card>
@@ -749,7 +726,6 @@ const AdminDashboard: React.FC = () => {
             </Card>
           </div>
 
-          {/* Bill Generation */}
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">

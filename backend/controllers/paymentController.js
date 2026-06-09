@@ -1,7 +1,7 @@
 const Razorpay = require('razorpay');
-const crypto   = require('crypto');
-const Payment  = require('../models/Payment');
-const Bill     = require('../models/Bill');
+const crypto = require('crypto');
+const Payment = require('../models/Payment');
+const Bill = require('../models/Bill');
 const mongoose = require('mongoose');
 const { logAudit } = require('../utils/auditLogger');
 
@@ -10,14 +10,12 @@ const getRazorpay = () => {
     throw new Error('Razorpay keys not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to .env');
   }
   return new Razorpay({
-    key_id:     process.env.RAZORPAY_KEY_ID,
+    key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
   });
 };
 
-// @desc   Create Razorpay order
-// @route  POST /api/payments/create-order
-// @access Private/Consumer
+
 const createOrder = async (req, res) => {
   try {
     const { billId } = req.body;
@@ -36,28 +34,28 @@ const createOrder = async (req, res) => {
     }
 
     const razorpay = getRazorpay();
-    const order    = await razorpay.orders.create({
-      amount:   bill.amount * 100,  // paise
+    const order = await razorpay.orders.create({
+      amount: bill.amount * 100,  // paise
       currency: 'INR',
-      receipt:  `rcpt_${bill.billNumber}`.substring(0, 40),
-      notes:    { billId: billId.toString(), consumerNumber: bill.consumerNumber },
+      receipt: `rcpt_${bill.billNumber}`.substring(0, 40),
+      notes: { billId: billId.toString(), consumerNumber: bill.consumerNumber },
     });
 
     // Save payment record
     await Payment.create({
       razorpayOrderId: order.id,
-      billId:          bill._id,
-      consumerNumber:  bill.consumerNumber,
-      amount:          bill.amount,
-      status:          'created',
+      billId: bill._id,
+      consumerNumber: bill.consumerNumber,
+      amount: bill.amount,
+      status: 'created',
     });
 
     res.json({
-      orderId:   order.id,
-      amount:    order.amount,
-      currency:  order.currency,
-      keyId:     process.env.RAZORPAY_KEY_ID,
-      billId:    bill._id,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      billId: bill._id,
       billNumber: bill.billNumber,
     });
   } catch (err) {
@@ -66,16 +64,13 @@ const createOrder = async (req, res) => {
   }
 };
 
-// @desc   Verify Razorpay payment signature
-// @route  POST /api/payments/verify
-// @access Private/Consumer
 const verifyPayment = async (req, res) => {
   try {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature, billId } = req.body;
 
     // Signature verification
-    const body      = razorpayOrderId + '|' + razorpayPaymentId;
-    const expected  = crypto
+    const body = razorpayOrderId + '|' + razorpayPaymentId;
+    const expected = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(body)
       .digest('hex');
@@ -94,10 +89,10 @@ const verifyPayment = async (req, res) => {
     const bill = await Bill.findByIdAndUpdate(
       billId,
       {
-        status:            'paid',
-        paidAt:            new Date(),
-        paymentMethod:     'razorpay',
-        transactionRef:    razorpayPaymentId,
+        status: 'paid',
+        paidAt: new Date(),
+        paymentMethod: 'razorpay',
+        transactionRef: razorpayPaymentId,
         razorpayOrderId,
         razorpayPaymentId,
       },
@@ -120,9 +115,6 @@ const verifyPayment = async (req, res) => {
   }
 };
 
-// @desc   Get payment status for a bill
-// @route  GET /api/payments/bill/:billId
-// @access Private
 const getPaymentByBill = async (req, res) => {
   try {
     const payment = await Payment.findOne({ billId: req.params.billId }).sort({ createdAt: -1 });
