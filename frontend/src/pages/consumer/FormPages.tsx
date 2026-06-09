@@ -129,8 +129,7 @@ const FormPages: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    try {
-      // Validate required fields and construct final submission data
+    try {
       const finalData: Record<string, any> = {};
       const missingFields: string[] = [];
       
@@ -188,8 +187,7 @@ const FormPages: React.FC = () => {
         if ((useAuth as any)().refreshUser) {
            await (useAuth as any)().refreshUser();
         }
-      } else {
-        // Handle all other service requests
+      } else {
         const typeMap: any = {
           'new-connection': 'NEW_CONNECTION',
           'disable-connection': 'DISABLE_CONNECTION',
@@ -272,7 +270,7 @@ const FormPages: React.FC = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
+        
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -287,7 +285,7 @@ const FormPages: React.FC = () => {
           </div>
         </div>
 
-        {/* Form */}
+        
         <Card>
           <CardHeader>
             <CardTitle>Request Details</CardTitle>

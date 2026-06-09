@@ -4,8 +4,6 @@ const { logAudit }      = require('../utils/auditLogger');
 const { generateBillPdf } = require('../utils/pdfService');
 const { generateMonthlyBills } = require('../utils/billGenerator');
 
-// ── Get all bills for a consumer ──────────────────────────────────────────
-// @route GET /api/bills/:consumerNumber
 const getBills = async (req, res) => {
   try {
     if (req.user.role === 'consumer' && req.user.consumerNumber !== req.params.consumerNumber) {
@@ -18,8 +16,6 @@ const getBills = async (req, res) => {
   }
 };
 
-// ── Get all bills (Admin/Manager with filters) ────────────────────────────
-// @route GET /api/bills
 const getAllBills = async (req, res) => {
   try {
     const { consumerNumber, status, page = 1, limit = 20, search } = req.query;
@@ -45,8 +41,6 @@ const getAllBills = async (req, res) => {
   }
 };
 
-// ── Get bill by ID ────────────────────────────────────────────────────────
-// @route GET /api/bills/detail/:id
 const getBillById = async (req, res) => {
   try {
     const bill = await Bill.findById(req.params.id);
@@ -70,8 +64,6 @@ const getBillById = async (req, res) => {
   }
 };
 
-// ── Create a bill manually (Admin/Manager) ────────────────────────────────
-// @route POST /api/bills
 const createBill = async (req, res) => {
   try {
     const { consumerNumber, billNumber, billingPeriod, dueDate, amount, units } = req.body;
@@ -97,8 +89,6 @@ const createBill = async (req, res) => {
   }
 };
 
-// ── Update a bill (Admin/Manager) ─────────────────────────────────────────
-// @route PUT /api/bills/:id
 const updateBill = async (req, res) => {
   try {
     const bill = await Bill.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
@@ -109,8 +99,6 @@ const updateBill = async (req, res) => {
   }
 };
 
-// ── Delete a bill (Admin only) ────────────────────────────────────────────
-// @route DELETE /api/bills/:id
 const deleteBill = async (req, res) => {
   try {
     const bill = await Bill.findByIdAndDelete(req.params.id);
@@ -128,8 +116,6 @@ const deleteBill = async (req, res) => {
   }
 };
 
-// ── Download PDF bill ─────────────────────────────────────────────────────
-// @route GET /api/bills/:id/download
 const downloadBillPdf = async (req, res) => {
   try {
     const bill = await Bill.findById(req.params.id);
@@ -155,8 +141,6 @@ const downloadBillPdf = async (req, res) => {
   }
 };
 
-// ── Mark bill as paid (Admin/Manager offline override) ────────────────────
-// @route PUT /api/bills/:id/pay
 const markBillPaid = async (req, res) => {
   try {
     const { paymentMethod, transactionRef } = req.body;
@@ -185,8 +169,6 @@ const markBillPaid = async (req, res) => {
   }
 };
 
-// ── Trigger manual bill generation ────────────────────────────────────────
-// @route POST /api/bills/generate
 const triggerBillGeneration = async (req, res) => {
   try {
     const result = await generateMonthlyBills();

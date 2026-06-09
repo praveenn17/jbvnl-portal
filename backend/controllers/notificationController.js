@@ -1,8 +1,5 @@
 const Notification = require('../models/Notification');
 
-// @desc    Get all notifications for logged-in user
-// @route   GET /api/notifications
-// @access  Private
 const getNotifications = async (req, res) => {
   try {
     const { unreadOnly, page = 1, limit = 50 } = req.query;
@@ -30,9 +27,6 @@ const getNotifications = async (req, res) => {
   }
 };
 
-// @desc    Get unread count for logged-in user
-// @route   GET /api/notifications/unread-count
-// @access  Private
 const getUnreadCount = async (req, res) => {
   try {
     const query = {
@@ -50,9 +44,6 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
-// @desc    Mark single notification as read
-// @route   PATCH /api/notifications/:id/read
-// @access  Private
 const markAsRead = async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);
@@ -79,9 +70,6 @@ const markAsRead = async (req, res) => {
   }
 };
 
-// @desc    Mark all notifications as read for logged-in user
-// @route   PATCH /api/notifications/mark-all-read
-// @access  Private
 const markAllAsRead = async (req, res) => {
   try {
     const query = {
@@ -102,9 +90,6 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
-// @desc    Delete single notification
-// @route   DELETE /api/notifications/:id
-// @access  Private
 const deleteNotification = async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);
@@ -128,9 +113,6 @@ const deleteNotification = async (req, res) => {
   }
 };
 
-// @desc    Clear all notifications for logged-in user
-// @route   DELETE /api/notifications/clear-all
-// @access  Private
 const clearAllNotifications = async (req, res) => {
   try {
     const query = {

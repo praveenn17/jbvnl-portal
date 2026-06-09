@@ -1,8 +1,5 @@
 const AuditLog = require('../models/AuditLog');
 
-// @desc    Get all audit logs with pagination and filters
-// @route   GET /api/audit-logs
-// @access  Private/Admin
 const getAuditLogs = async (req, res) => {
   try {
     const {
@@ -52,9 +49,6 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
-// @desc    Get single audit log
-// @route   GET /api/audit-logs/:id
-// @access  Private/Admin
 const getAuditLogById = async (req, res) => {
   try {
     const log = await AuditLog.findById(req.params.id).populate('actor', 'name email role');

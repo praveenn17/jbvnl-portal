@@ -7,8 +7,6 @@ const DEFAULT_TARIFF = {
   industrial: { ratePerUnit: 7.5,  fixedCharge: 250, taxRate: 5 },
 };
 
-// @desc   Get active tariff
-// @route  GET /api/tariff
 const getTariff = async (req, res) => {
   try {
     let tariff = await Tariff.findOne({ isActive: true });
@@ -22,8 +20,6 @@ const getTariff = async (req, res) => {
   }
 };
 
-// @desc   Update tariff (Admin only)
-// @route  PUT /api/tariff
 const updateTariff = async (req, res) => {
   try {
     const { domestic, commercial, industrial } = req.body;

@@ -8,9 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockApi } from '@/lib/mockApi';
-import { Bill } from '@/types';
-
-// ── Shared mock bill generator ─────────────────────────────────────────────────
+import { Bill } from '@/types';
 // Exported so ConsumerDashboard can use the exact same dataset for analytics.
 export const generateMockBills = (consumerNumber: string): Bill[] => {
   const seed = consumerNumber
@@ -44,9 +42,7 @@ export const generateMockBills = (consumerNumber: string): Bill[] => {
       createdAt: date.toISOString(),
     } as unknown as Bill;
   });
-};
-
-// ── Shared analytics derivation ────────────────────────────────────────────────
+};
 // Single source of truth — used by both this page and ConsumerDashboard.
 export const deriveBillAnalytics = (bills: Bill[]) => {
   const totalUnits = bills.reduce((s, b) => s + b.units, 0);
@@ -78,9 +74,7 @@ export const deriveBillAnalytics = (bills: Bill[]) => {
     highestUsage, lowestUsage, highestBill, lowestBill,
     variance, variancePercent, ratePerUnit,
   };
-};
-
-// ── Mock PDF generator ─────────────────────────────────────────────────────────
+};
 const generateMockPdf = (bill: {
   billNumber: string; billingPeriod: string; amount: number;
   units: number; status: string; consumerNumber: string;
@@ -114,9 +108,7 @@ For queries contact: krpraveen2212@gmail.com
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-};
-
-// ── Component ──────────────────────────────────────────────────────────────────
+};
 const SixMonthsDetails: React.FC = () => {
   const navigate = useNavigate();
   const { user }  = useAuth();
@@ -143,16 +135,12 @@ const SixMonthsDetails: React.FC = () => {
       }
     };
     fetchBills();
-  }, [user]);
-
-  // ── All analytics from single source ──────────────────────────────────────
+  }, [user]);
   const {
     totalUnits, totalAmount, averageUnits, averageAmount,
     highestUsage, lowestUsage, highestBill, lowestBill,
     variance, variancePercent, ratePerUnit,
-  } = deriveBillAnalytics(bills);
-
-  // Monthly breakdown: sorted newest-first with trend vs previous month
+  } = deriveBillAnalytics(bills);
   const monthlyData = bills.map((bill, index) => ({
     id:     bill._id || bill.id,
     month:  bill.billingPeriod,
@@ -200,9 +188,7 @@ const SixMonthsDetails: React.FC = () => {
       } catch (error) {
         console.error('Error downloading real PDF', error);
       }
-    }
-    
-    // Fallback for mock bills
+    }
     generateMockPdf({
       billNumber:     data.billNumber,
       billingPeriod:  data.month,
@@ -211,11 +197,7 @@ const SixMonthsDetails: React.FC = () => {
       status:         data.status,
       consumerNumber: data.consumerNumber,
     });
-  };
-
-
-
-  // ── Summary stat cards config ──────────────────────────────────────────────
+  };
   const summaryCards = [
     { label: 'Total Units Consumed', value: `${totalUnits} kWh`,        sub: `Last ${bills.length} months`, gradient: 'from-blue-600 to-blue-700' },
     { label: 'Total Amount Billed',  value: `₹${totalAmount.toLocaleString()}`, sub: 'Billed amount',      gradient: 'from-emerald-600 to-emerald-700' },
@@ -227,7 +209,7 @@ const SixMonthsDetails: React.FC = () => {
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,_hsl(215,60%,10%)_0%,_hsl(220,40%,6%)_40%,_hsl(225,35%,4%)_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,_hsl(215,60%,10%)_0%,_hsl(220,40%,6%)_40%,_hsl(225,35%,4%)_100%)] p-6">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* ── Header ────────────────────────────────────────────────────────── */}
+        
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
@@ -251,7 +233,7 @@ const SixMonthsDetails: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* ── Summary Cards ────────────────────────────────────────────── */}
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {summaryCards.map(card => (
                 <div
@@ -265,7 +247,7 @@ const SixMonthsDetails: React.FC = () => {
               ))}
             </div>
 
-            {/* ── Monthly Breakdown ─────────────────────────────────────────── */}
+            
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
               <div className="px-6 py-4 border-b border-white/10">
                 <div className="flex items-center gap-2">
@@ -281,7 +263,7 @@ const SixMonthsDetails: React.FC = () => {
                     key={index}
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 py-4 hover:bg-white/[0.04] transition-colors"
                   >
-                    {/* Month + trend */}
+                    
                     <div className="flex items-center gap-3 min-w-[160px]">
                       {data.trend === 'up' ? (
                         <TrendingUp className="h-4 w-4 text-red-400 shrink-0" />
@@ -294,7 +276,7 @@ const SixMonthsDetails: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Stats */}
+                    
                     <div className="grid grid-cols-3 gap-6 text-center flex-1">
                       <div>
                         <p className="text-xs text-white/40 mb-0.5">Units</p>
@@ -315,7 +297,7 @@ const SixMonthsDetails: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Action button */}
+                    
                     <div className="flex justify-end gap-2">
                         {isUnpaid(data.status) && (
                           data.id?.startsWith('mock-') ? (
@@ -346,9 +328,9 @@ const SixMonthsDetails: React.FC = () => {
               </div>
             </div>
 
-            {/* ── Consumption Insights ──────────────────────────────────────── */}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Usage Trends */}
+              
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
                 <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                   <Zap className="h-4 w-4 text-yellow-400" />
@@ -369,7 +351,7 @@ const SixMonthsDetails: React.FC = () => {
                 </div>
               </div>
 
-              {/* Cost Analysis */}
+              
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
                 <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-blue-400" />

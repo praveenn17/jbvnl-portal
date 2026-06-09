@@ -2,8 +2,6 @@ const Bill      = require('../models/Bill');
 const User      = require('../models/User');
 const Complaint = require('../models/Complaint');
 
-// ── Revenue Stats (Admin/Manager) ─────────────────────────────────────────
-// @route GET /api/stats/revenue
 const getRevenueStats = async (req, res) => {
   try {
     const now   = new Date();
@@ -59,7 +57,6 @@ const getRevenueStats = async (req, res) => {
   }
 };
 
-// ── Manager Dashboard Stats ────────────────────────────────────────────────
 const getManagerStats = async (req, res) => {
   try {
     const [bills, totalUsers, pendingComplaints] = await Promise.all([
@@ -80,7 +77,6 @@ const getManagerStats = async (req, res) => {
   }
 };
 
-// ── Admin + Consumer Dashboard Stats ──────────────────────────────────────
 const getDashboardStats = async (req, res) => {
   try {
     const role = req.user.role;

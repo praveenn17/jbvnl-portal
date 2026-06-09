@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Server, Cpu, Database, Network, Clock, Gauge, HardDrive, Zap } from 'lucide-react';
+import { ArrowLeft, Server, Cpu, Database, Network, Clock, Gauge, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
@@ -61,7 +61,7 @@ const SystemParameters: React.FC = () => {
           </div>
         </div>
 
-        {/* System Health Overview */}
+        
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
             <CardHeader className="pb-2">
@@ -116,7 +116,7 @@ const SystemParameters: React.FC = () => {
           </Card>
         </div>
 
-        {/* System Performance Monitoring */}
+        
         <Card className="mb-8 bg-white/70 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2">
@@ -144,7 +144,7 @@ const SystemParameters: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Billing and Notification Configuration */}
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
@@ -199,7 +199,7 @@ const SystemParameters: React.FC = () => {
           </Card>
         </div>
 
-        {/* API Rate Limits */}
+        
         <Card className="mb-8 bg-white/70 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2">
@@ -242,7 +242,7 @@ const SystemParameters: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Detailed Configuration Parameters */}
+        
         <Card className="bg-gradient-to-r from-gray-800 to-gray-900 text-white">
           <CardHeader>
             <CardTitle className="text-2xl">Operational Configuration Details</CardTitle>

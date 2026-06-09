@@ -2,9 +2,6 @@ const ServiceRequest = require('../models/ServiceRequest');
 const { logAudit } = require('../utils/auditLogger');
 const notificationService = require('../utils/notificationService');
 
-// @desc    Create a service request
-// @route   POST /api/service-requests
-// @access  Private (Consumer)
 const createServiceRequest = async (req, res) => {
   const { requestType, title, description, phone, address, metadata } = req.body;
 
@@ -56,9 +53,6 @@ const createServiceRequest = async (req, res) => {
   }
 };
 
-// @desc    Get user's service requests
-// @route   GET /api/service-requests/my
-// @access  Private
 const getMyServiceRequests = async (req, res) => {
   try {
     const requests = await ServiceRequest.find({ user: req.user._id }).sort({ createdAt: -1 });
@@ -68,9 +62,6 @@ const getMyServiceRequests = async (req, res) => {
   }
 };
 
-// @desc    Get service request by ID
-// @route   GET /api/service-requests/:id
-// @access  Private
 const getServiceRequestById = async (req, res) => {
   try {
     const request = await ServiceRequest.findById(req.params.id);

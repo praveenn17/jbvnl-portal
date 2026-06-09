@@ -2,8 +2,6 @@ const Meter = require('../models/Meter');
 const User  = require('../models/User');
 const { logAudit } = require('../utils/auditLogger');
 
-// @desc   Get all meters (Admin/Manager)
-// @route  GET /api/meters
 const getMeters = async (req, res) => {
   try {
     const { consumerNumber, status, isSimulated } = req.query;
@@ -19,8 +17,6 @@ const getMeters = async (req, res) => {
   }
 };
 
-// @desc   Get simulated meter count (Admin dashboard warning)
-// @route  GET /api/meters/simulated-count
 const getSimulatedCount = async (req, res) => {
   try {
     const count = await Meter.countDocuments({ isSimulated: true });
@@ -30,8 +26,6 @@ const getSimulatedCount = async (req, res) => {
   }
 };
 
-// @desc   Get meter for own consumer number
-// @route  GET /api/meters/my
 const getMyMeter = async (req, res) => {
   try {
     const meter = await Meter.findOne({ consumerNumber: req.user.consumerNumber });
@@ -42,8 +36,6 @@ const getMyMeter = async (req, res) => {
   }
 };
 
-// @desc   Create / assign a meter (Admin)
-// @route  POST /api/meters
 const createMeter = async (req, res) => {
   try {
     const { consumerNumber, meterType, meterNumber, installationDate, previousReading, currentReading } = req.body;
@@ -88,8 +80,6 @@ const createMeter = async (req, res) => {
   }
 };
 
-// @desc   Update meter readings (Admin/Manager)
-// @route  PUT /api/meters/:id
 const updateMeterReading = async (req, res) => {
   try {
     const { currentReading, status } = req.body;
@@ -124,8 +114,6 @@ const updateMeterReading = async (req, res) => {
   }
 };
 
-// @desc   Delete meter (Admin only)
-// @route  DELETE /api/meters/:id
 const deleteMeter = async (req, res) => {
   try {
     const meter = await Meter.findByIdAndDelete(req.params.id);

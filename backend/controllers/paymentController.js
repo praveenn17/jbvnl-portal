@@ -15,7 +15,6 @@ const getRazorpay = () => {
   });
 };
 
-
 const createOrder = async (req, res) => {
   try {
     const { billId } = req.body;
@@ -79,13 +78,11 @@ const verifyPayment = async (req, res) => {
       return res.status(400).json({ message: 'Payment verification failed — invalid signature' });
     }
 
-    // Update payment record
     await Payment.findOneAndUpdate(
       { razorpayOrderId },
       { razorpayPaymentId, razorpaySignature, status: 'paid', paidAt: new Date() }
     );
 
-    // Update bill status
     const bill = await Bill.findByIdAndUpdate(
       billId,
       {

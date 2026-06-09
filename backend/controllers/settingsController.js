@@ -2,9 +2,6 @@ const AdminSettings = require('../models/AdminSettings');
 const { logAudit } = require('../utils/auditLogger');
 const notificationService = require('../utils/notificationService');
 
-// @desc    Get Admin Settings
-// @route   GET /api/settings
-// @access  Private/Admin
 const getSettings = async (req, res) => {
   try {
     let settings = await AdminSettings.findOne();
@@ -20,9 +17,6 @@ const getSettings = async (req, res) => {
   }
 };
 
-// @desc    Update Admin Settings
-// @route   PATCH /api/settings
-// @access  Private/Admin
 const updateSettings = async (req, res) => {
   try {
     let settings = await AdminSettings.findOne();
@@ -61,9 +55,6 @@ const updateSettings = async (req, res) => {
   }
 };
 
-// @desc    Simulate Manual Backup
-// @route   POST /api/settings/backup/run
-// @access  Private/Admin
 const runBackup = async (req, res) => {
   try {
     let settings = await AdminSettings.findOne();

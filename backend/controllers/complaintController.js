@@ -1,7 +1,7 @@
 const Complaint = require('../models/Complaint');
 const { logAudit } = require('../utils/auditLogger');
 const notificationService = require('../utils/notificationService');
-const User = require('../models/User'); // Required to lookup consumer for notifications
+const User = require('../models/User');
 
 const getSLAHours = (priority) => {
   switch (priority) {
@@ -17,30 +17,30 @@ const calculateDisplaySLA = (complaint) => {
   if (complaint.status === 'resolved' || complaint.status === 'closed') {
     return 'completed';
   }
-  
+
   if (!complaint.sla || !complaint.sla.dueAt) return 'on_track';
 
   const now = new Date();
   const due = new Date(complaint.sla.dueAt);
-  
+
   if (now > due) {
     return 'breached';
   }
-  
+
   const timeRemaining = due.getTime() - now.getTime();
   const totalTime = complaint.sla.slaHours * 60 * 60 * 1000;
-  
+
   if (timeRemaining < totalTime * 0.25) {
     return 'at_risk';
   }
-  
+
   return 'on_track';
 };
 
 const getComplaints = async (req, res) => {
   try {
     let query = {};
-    
+
     if (req.user.role === 'consumer') {
       if (req.user.consumerNumber) {
         query.consumerNumber = req.user.consumerNumber;
@@ -90,7 +90,7 @@ const getComplaintById = async (req, res) => {
     if (doc.sla && doc.sla.dueAt) {
       doc.sla.status = calculateDisplaySLA(doc);
     }
-    
+
     // Consumers don't see internal admin notes
     if (req.user.role === 'consumer') {
       delete doc.adminNotes;
@@ -230,9 +230,9 @@ const updateComplaintStatus = async (req, res) => {
         'assigned': ['in_progress'],
         'in_progress': ['resolved']
       };
-      
+
       if (!allowedTransitions[complaint.status] || !allowedTransitions[complaint.status].includes(status)) {
-         return res.status(400).json({ message: `Manager cannot transition status from ${complaint.status} to ${status}` });
+        return res.status(400).json({ message: `Manager cannot transition status from ${complaint.status} to ${status}` });
       }
     } else if (req.user.role === 'consumer') {
       return res.status(403).json({ message: 'Consumers cannot update status' });
@@ -314,11 +314,11 @@ const updateComplaintPriority = async (req, res) => {
     const slaHours = getSLAHours(priority);
     const startFrom = complaint.createdAt || Date.now();
     const dueAt = new Date(new Date(startFrom).getTime() + slaHours * 60 * 60 * 1000);
-    
+
     if (!complaint.sla) complaint.sla = {};
     complaint.sla.slaHours = slaHours;
     complaint.sla.dueAt = dueAt;
-    
+
     if (note) {
       complaint.adminNotes.push({
         note,
