@@ -5,13 +5,6 @@ const User = require('../models/User');
 const { logAudit } = require('../utils/auditLogger');
 const { createNotification } = require('../utils/notificationService');
 
-// ═══════════════════════════════════════════════════════════════════════
-// LEGACY ONE-WAY MESSAGE FUNCTIONS (UNCHANGED)
-// ═══════════════════════════════════════════════════════════════════════
-
-// @desc    Send Message to Admin
-// @route   POST /api/messages
-// @access  Private (Manager)
 const sendMessage = async (req, res) => {
   try {
     const { subject, message, priority, category } = req.body;
@@ -59,9 +52,6 @@ const sendMessage = async (req, res) => {
   }
 };
 
-// @desc    Get Admin Messages
-// @route   GET /api/messages/admin
-// @access  Private (Admin)
 const getAdminMessages = async (req, res) => {
   try {
     const messages = await Message.find({ recipientRole: 'admin' }).sort({ createdAt: -1 });
@@ -71,9 +61,6 @@ const getAdminMessages = async (req, res) => {
   }
 };
 
-// @desc    Mark Message as Read
-// @route   PATCH /api/messages/:id/read
-// @access  Private (Admin)
 const markMessageRead = async (req, res) => {
   try {
     const msg = await Message.findById(req.params.id);
@@ -105,9 +92,6 @@ const markMessageRead = async (req, res) => {
   }
 };
 
-// @desc    Close Message
-// @route   PATCH /api/messages/:id/close
-// @access  Private (Admin)
 const closeMessage = async (req, res) => {
   try {
     const msg = await Message.findById(req.params.id);
@@ -137,13 +121,6 @@ const closeMessage = async (req, res) => {
   }
 };
 
-// ═══════════════════════════════════════════════════════════════════════
-// NEW TWO-WAY CONVERSATION FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════
-
-// @desc    Start a new conversation (Manager only)
-// @route   POST /api/messages/conversations
-// @access  Private (Manager)
 const createConversation = async (req, res) => {
   try {
     const { subject, message, priority, category } = req.body;
@@ -151,7 +128,6 @@ const createConversation = async (req, res) => {
       return res.status(400).json({ message: 'Subject and message are required.' });
     }
 
-    // Find all admins to add as participants
     const admins = await User.find({ role: 'admin' }).select('_id');
     const adminIds = admins.map(a => a._id);
     const participants = [req.user._id, ...adminIds];
@@ -177,7 +153,6 @@ const createConversation = async (req, res) => {
       readBy: [req.user._id],
     });
 
-    // Notify all admins
     for (const admin of admins) {
       createNotification({
         recipient: admin._id,
@@ -208,9 +183,6 @@ const createConversation = async (req, res) => {
   }
 };
 
-// @desc    Get conversations (Admin: all; Manager: own only)
-// @route   GET /api/messages/conversations
-// @access  Private (Admin + Manager)
 const getConversations = async (req, res) => {
   try {
     let query = {};
@@ -225,9 +197,6 @@ const getConversations = async (req, res) => {
   }
 };
 
-// @desc    Get single conversation + all its messages
-// @route   GET /api/messages/conversations/:id
-// @access  Private (Admin + Manager who is a participant)
 const getConversationById = async (req, res) => {
   try {
     const conversation = await Conversation.findById(req.params.id);
@@ -247,9 +216,6 @@ const getConversationById = async (req, res) => {
   }
 };
 
-// @desc    Reply to a conversation
-// @route   POST /api/messages/conversations/:id/reply
-// @access  Private (Admin + Manager who is a participant)
 const replyToConversation = async (req, res) => {
   try {
     const { message } = req.body;
@@ -281,15 +247,12 @@ const replyToConversation = async (req, res) => {
       readBy: [req.user._id],
     });
 
-    // Update conversation's last message info
     conversation.lastMessageAt = new Date();
     conversation.lastMessagePreview = message.slice(0, 100);
     if (conversation.status === 'read') conversation.status = 'open'; // reopen read conversation on new reply
     await conversation.save();
 
-    // Send notification and audit log based on who is replying
     if (req.user.role === 'admin') {
-      // Notify the manager who started the conversation
       createNotification({
         recipient: conversation.initiatedBy,
         title: 'Admin Replied to Your Conversation',
@@ -343,9 +306,6 @@ const replyToConversation = async (req, res) => {
   }
 };
 
-// @desc    Mark conversation as read (updates status + readBy on messages)
-// @route   PATCH /api/messages/conversations/:id/read
-// @access  Private (Admin + Manager)
 const markConversationRead = async (req, res) => {
   try {
     const conversation = await Conversation.findById(req.params.id);
@@ -358,7 +318,6 @@ const markConversationRead = async (req, res) => {
       await conversation.save();
     }
 
-    // Mark all messages in this conversation as read by this user
     await ConversationMessage.updateMany(
       { conversationId: conversation._id, readBy: { $ne: req.user._id } },
       { $addToSet: { readBy: req.user._id } }
@@ -370,9 +329,6 @@ const markConversationRead = async (req, res) => {
   }
 };
 
-// @desc    Close a conversation (Admin only)
-// @route   PATCH /api/messages/conversations/:id/close
-// @access  Private (Admin only)
 const closeConversation = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -389,7 +345,6 @@ const closeConversation = async (req, res) => {
     conversation.closedBy = req.user._id;
     await conversation.save();
 
-    // Notify the manager
     createNotification({
       recipient: conversation.initiatedBy,
       title: 'Conversation Closed',
@@ -418,12 +373,10 @@ const closeConversation = async (req, res) => {
 };
 
 module.exports = {
-  // Legacy
   sendMessage,
   getAdminMessages,
   markMessageRead,
   closeMessage,
-  // New conversation system
   createConversation,
   getConversations,
   getConversationById,

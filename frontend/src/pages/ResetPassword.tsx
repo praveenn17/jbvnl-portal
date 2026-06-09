@@ -50,7 +50,6 @@ const ResetPassword: React.FC = () => {
   const [pageState, setPageState]         = useState<PageState>('form');
   const [errorMsg, setErrorMsg]           = useState('');
 
-  // Redirect to login after success
   useEffect(() => {
     if (pageState === 'success') {
       const timer = setTimeout(() => navigate('/'), 4000);
@@ -58,7 +57,6 @@ const ResetPassword: React.FC = () => {
     }
   }, [pageState, navigate]);
 
-  // Validate that token param is present; show error if not
   useEffect(() => {
     if (!token || token.length < 10) {
       setPageState('invalid_token');
@@ -115,13 +113,11 @@ const ResetPassword: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden animate-fade-in">
-      {/* Background glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/20 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative w-full max-w-5xl glass-effect bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex flex-col md:flex-row shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] z-10">
 
-        {/* ── Left Branding Pane ── */}
         <div className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-black/60 to-transparent border-r border-white/5 w-1/2 relative">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80')] opacity-20 bg-cover bg-center mix-blend-overlay" />
 
@@ -150,7 +146,6 @@ const ResetPassword: React.FC = () => {
               Set a new secure password for your account.
             </p>
 
-            {/* Password tips */}
             <div className="space-y-3">
               {[
                 'Use a mix of uppercase, lowercase, numbers and symbols',
@@ -171,10 +166,8 @@ const ResetPassword: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Right Form Pane ── */}
         <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center relative">
 
-          {/* Mobile back */}
           <button
             onClick={() => navigate('/')}
             className="md:hidden flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-6 text-sm"
@@ -183,7 +176,6 @@ const ResetPassword: React.FC = () => {
             Back
           </button>
 
-          {/* Mobile branding */}
           <div className="md:hidden flex flex-col items-center mb-8 text-center">
             <Zap className="w-10 h-10 text-primary mb-3 drop-shadow-[0_0_8px_rgba(var(--primary),1)]" />
             <h1 className="text-xl font-bold text-white mb-1">JBVNL Portal</h1>
@@ -192,7 +184,6 @@ const ResetPassword: React.FC = () => {
 
           <div className="w-full max-w-sm mx-auto">
 
-            {/* ── SUCCESS STATE ── */}
             {pageState === 'success' && (
               <div className="text-center space-y-6 animate-fade-in">
                 <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-500/15 border border-green-500/30 mx-auto">
@@ -216,7 +207,6 @@ const ResetPassword: React.FC = () => {
               </div>
             )}
 
-            {/* ── INVALID TOKEN STATE ── */}
             {pageState === 'invalid_token' && (
               <div className="text-center space-y-6 animate-fade-in">
                 <div className="flex items-center justify-center w-20 h-20 rounded-full bg-red-500/15 border border-red-500/30 mx-auto">
@@ -244,7 +234,6 @@ const ResetPassword: React.FC = () => {
               </div>
             )}
 
-            {/* ── FORM / LOADING STATE ── */}
             {(pageState === 'form' || pageState === 'loading') && (
               <div className="space-y-6">
                 <div>
@@ -256,7 +245,6 @@ const ResetPassword: React.FC = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
 
-                  {/* New Password */}
                   <div className="space-y-2">
                     <Label htmlFor="rp-new" className="text-sm font-medium">
                       New Password <span className="text-red-400">*</span>
@@ -284,7 +272,6 @@ const ResetPassword: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Password strength bar */}
                     {newPassword.length > 0 && (
                       <div className="space-y-2 mt-2">
                         <div className="flex items-center justify-between text-xs mb-1">
@@ -306,7 +293,6 @@ const ResetPassword: React.FC = () => {
                           ))}
                         </div>
 
-                        {/* Requirements checklist */}
                         <ul className="space-y-1 mt-2">
                           {requirements.map((req) => (
                             <li key={req.label} className="flex items-center gap-2 text-xs">
@@ -324,7 +310,6 @@ const ResetPassword: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Confirm Password */}
                   <div className="space-y-2">
                     <Label htmlFor="rp-confirm" className="text-sm font-medium">
                       Confirm Password <span className="text-red-400">*</span>
@@ -365,7 +350,6 @@ const ResetPassword: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Inline error */}
                   {errorMsg && (
                     <div className="flex items-start gap-2 bg-red-950/30 border border-red-700/40 rounded-lg p-3 text-sm text-red-400">
                       <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />

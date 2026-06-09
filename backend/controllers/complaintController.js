@@ -3,7 +3,6 @@ const { logAudit } = require('../utils/auditLogger');
 const notificationService = require('../utils/notificationService');
 const User = require('../models/User'); // Required to lookup consumer for notifications
 
-// --- Helpers ---
 const getSLAHours = (priority) => {
   switch (priority) {
     case 'urgent': return 4;
@@ -38,9 +37,6 @@ const calculateDisplaySLA = (complaint) => {
   return 'on_track';
 };
 
-// @desc    Get all complaints
-// @route   GET /api/complaints
-// @access  Private
 const getComplaints = async (req, res) => {
   try {
     let query = {};
@@ -61,7 +57,6 @@ const getComplaints = async (req, res) => {
       .populate('lastUpdatedBy', 'name role')
       .sort({ createdAt: -1 });
 
-    // Calculate dynamic SLA status for display
     const processedComplaints = complaints.map(c => {
       const doc = c.toObject();
       if (doc.sla && doc.sla.dueAt) {
@@ -76,9 +71,6 @@ const getComplaints = async (req, res) => {
   }
 };
 
-// @desc    Get single complaint
-// @route   GET /api/complaints/:id
-// @access  Private
 const getComplaintById = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
@@ -87,7 +79,6 @@ const getComplaintById = async (req, res) => {
 
     if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
 
-    // Security check
     if (req.user.role === 'consumer' && complaint.consumerNumber !== req.user.consumerNumber) {
       return res.status(403).json({ message: 'Not authorized to view this complaint' });
     }
@@ -111,9 +102,6 @@ const getComplaintById = async (req, res) => {
   }
 };
 
-// @desc    File a new complaint
-// @route   POST /api/complaints
-// @access  Private
 const fileComplaint = async (req, res) => {
   const { title, description, category, priority, consumerNumber, preferredTime, contactNumber } = req.body;
 
@@ -170,9 +158,6 @@ const fileComplaint = async (req, res) => {
   }
 };
 
-// @desc    Assign complaint to manager/team
-// @route   PATCH /api/complaints/:id/assign
-// @access  Private/Admin
 const assignComplaint = async (req, res) => {
   const { assignedTo, assignedTeam, note } = req.body;
 
@@ -233,9 +218,6 @@ const assignComplaint = async (req, res) => {
   }
 };
 
-// @desc    Update complaint status
-// @route   PATCH /api/complaints/:id/status
-// @access  Private (Admin/Manager)
 const updateComplaintStatus = async (req, res) => {
   const { status, note } = req.body;
 
@@ -243,7 +225,6 @@ const updateComplaintStatus = async (req, res) => {
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
 
-    // Validate transition for managers
     if (req.user.role === 'manager') {
       const allowedTransitions = {
         'assigned': ['in_progress'],
@@ -299,7 +280,6 @@ const updateComplaintStatus = async (req, res) => {
       severity: status === 'resolved' ? 'info' : 'warning',
     });
 
-    // Notify consumer if a consumer is tied to the complaint
     if (updatedComplaint.consumerNumber) {
       const consumer = await User.findOne({ consumerNumber: updatedComplaint.consumerNumber });
       if (consumer) {
@@ -320,9 +300,6 @@ const updateComplaintStatus = async (req, res) => {
   }
 };
 
-// @desc    Update complaint priority
-// @route   PATCH /api/complaints/:id/priority
-// @access  Private/Admin
 const updateComplaintPriority = async (req, res) => {
   const { priority, note } = req.body;
 
@@ -334,7 +311,6 @@ const updateComplaintPriority = async (req, res) => {
     complaint.priority = priority;
     complaint.lastUpdatedBy = req.user._id;
 
-    // Recalculate SLA
     const slaHours = getSLAHours(priority);
     const startFrom = complaint.createdAt || Date.now();
     const dueAt = new Date(new Date(startFrom).getTime() + slaHours * 60 * 60 * 1000);
@@ -391,9 +367,6 @@ const updateComplaintPriority = async (req, res) => {
   }
 };
 
-// @desc    Add a note to a complaint
-// @route   POST /api/complaints/:id/notes
-// @access  Private (Admin/Manager)
 const addComplaintNote = async (req, res) => {
   const { note } = req.body;
 

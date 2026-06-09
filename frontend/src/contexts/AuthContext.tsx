@@ -98,7 +98,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ── Login ──────────────────────────────────────────────────────────────────
   const login = async (email: string, password: string, role: string): Promise<import('../types').LoginResult> => {
     setLoading(true);
     try {
@@ -114,7 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.message || 'Login failed');
       }
 
-      // Check if session takeover is required
       if (data.requiresSessionTakeover) {
         return {
           requiresSessionTakeover: true,
@@ -152,7 +150,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ── Session Takeover ───────────────────────────────────────────────────────
   const takeoverSession = async (email: string, password: string, role: string): Promise<import('../types').LoginResult> => {
     setLoading(true);
     try {
@@ -215,7 +212,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ── Register (Step 1: send OTP) ────────────────────────────────────────────
   const register = async (userData: {
     name: string;
     email: string;
@@ -250,7 +246,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn(`%c║  OTP: ${data.devOtp}  (or use 111000)      ║`, 'color: #10b981; font-size: 16px; font-weight: bold');
         console.warn('%c╚══════════════════════════════════════╝', 'color: #f59e0b; font-weight: bold');
         console.warn('');
-        // Also alert in console.table for easy copying
         console.table({ 'Your OTP': data.devOtp, 'Bypass OTP': '111000' });
       }
 
@@ -266,13 +261,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ── Clear OTP pending state ────────────────────────────────────────────────
   const clearOtpPending = () => {
     localStorage.removeItem('jbvnl_temp_reg_data');
     setOtpPendingEmail(null);
   };
 
-  // ── Verify OTP (Step 2: verify then register) ──────────────────────────────
   const verifyOtp = async (email: string, otp: string): Promise<boolean> => {
     setLoading(true);
     try {
@@ -307,7 +300,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(regData.message || 'Registration failed after OTP verification');
       }
 
-      // Clean up temp state
       localStorage.removeItem('jbvnl_temp_reg_data');
       setOtpPendingEmail(null);
 
@@ -328,13 +320,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ── Refresh pending users (callable from Admin Dashboard) ──────────────────
   const refreshPendingUsers = () => {
     const token = localStorage.getItem('jbvnl_token');
     fetchPending(token || undefined);
   };
 
-  // ── Resend OTP ─────────────────────────────────────────────────────────────
   const resendOtp = async (email: string): Promise<boolean> => {
     setLoading(true);
     try {

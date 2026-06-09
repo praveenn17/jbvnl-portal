@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, AlertTriangle, Clock, Calendar, MapPin, User, Filter, Phone, Mail, Copy, MessageSquare, Eye, RefreshCw, X, Users, MessageCircle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Clock, Calendar, MapPin, User, Filter, Phone, Eye, RefreshCw, Users, MessageCircle } from 'lucide-react';
 import { Complaint } from '@/types';
 import { mockApi } from '@/lib/mockApi';
 
@@ -27,7 +27,6 @@ const ActiveComplaints: React.FC = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modals
   const [detailId, setDetailId] = useState<string | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
   const [updateStatusId, setUpdateStatusId] = useState<string | null>(null);
@@ -36,13 +35,11 @@ const ActiveComplaints: React.FC = () => {
   const [priorityId, setPriorityId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
 
-  // Form states
   const [newStatus, setNewStatus] = useState('');
   const [newTeam, setNewTeam] = useState('');
   const [newNote, setNewNote] = useState('');
   const [newPriority, setNewPriority] = useState('');
 
-  // Filter state
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority'>('newest');
@@ -141,7 +138,6 @@ const ActiveComplaints: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -228,7 +224,6 @@ const ActiveComplaints: React.FC = () => {
         </Card>
       </div>
 
-      {/* ─── VIEW DETAILS MODAL ──────────────────────────────────────────────── */}
       <Dialog open={!!detailId} onOpenChange={() => setDetailId(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           {detail && (<>
@@ -284,7 +279,6 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── CONTACT CONSUMER MODAL ──────────────────────────────────────────── */}
       <Dialog open={!!contactId} onOpenChange={() => setContactId(null)}>
         <DialogContent>
           {contact && (<>
@@ -317,7 +311,6 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── UPDATE STATUS MODAL ─────────────────────────────────────────────── */}
       <Dialog open={!!updateStatusId} onOpenChange={() => setUpdateStatusId(null)}>
         <DialogContent>
           {updatingStatus && (<>
@@ -336,7 +329,6 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── ASSIGN MODAL ─────────────────────────────────────────────────────── */}
       <Dialog open={!!assignId} onOpenChange={() => setAssignId(null)}>
         <DialogContent>
           {assigning && (<>
@@ -355,7 +347,6 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── ADD NOTE MODAL ───────────────────────────────────────────────────── */}
       <Dialog open={!!noteId} onOpenChange={() => setNoteId(null)}>
         <DialogContent>
           {noting && (<>
@@ -371,7 +362,6 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── UPDATE PRIORITY MODAL ────────────────────────────────────────────── */}
       <Dialog open={!!priorityId} onOpenChange={() => setPriorityId(null)}>
         <DialogContent>
           {changingPriority && (<>
@@ -390,7 +380,6 @@ const ActiveComplaints: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── FILTER MODAL ─────────────────────────────────────────────────────── */}
       <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Filter & Sort Complaints</DialogTitle><DialogDescription className="sr-only">Filter complaints</DialogDescription></DialogHeader>
