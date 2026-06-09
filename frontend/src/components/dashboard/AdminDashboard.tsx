@@ -13,14 +13,13 @@ import { useNavigate } from 'react-router-dom';
 import { User, Complaint } from '../../types';
 import {
   Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Clock,
-  XCircle, Eye, MessageSquare, ChevronDown, ChevronRight, RefreshCcw,
+  XCircle, Eye, MessageSquare, ChevronDown, ChevronRight, RefreshCcw, Zap, Gauge, Settings2,
 } from 'lucide-react';
 import AdminSettings from './AdminSettings';
 import ApprovalDetailsModal from './ApprovalDetailsModal';
 import AuditLogs from './AuditLogs';
 import ConversationChatModal from '../chat/ConversationChatModal';
 import { mockApi } from '../../lib/mockApi';
-import { generateMockBills } from '@/pages/consumer/SixMonthsDetails';
 
 
 const getApiUrl = (url: string) => {
@@ -238,6 +237,8 @@ const AdminDashboard: React.FC = () => {
     complaintsByCategory: [],
   });
   const [loading, setLoading] = useState(true);
+  const [generatingBills, setGeneratingBills] = useState(false);
+  const [simulatedMeters, setSimulatedMeters] = useState(0);
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
 
   useEffect(() => {
@@ -250,78 +251,58 @@ const AdminDashboard: React.FC = () => {
           mockApi.getConsumersForManager().catch(() => []),
         ]);
 
-        // TODO: Replace generateMockBills with mockApi.getBills(consumerNumber) when payment API is ready
-        let calculatedRevenue = 0;
-        const monthlyMap: Record<string, number> = {};
-        let billsGenerated = 0;
-        let paymentsReceived = 0;
+        // Real revenue from MongoDB bills
+        const revenueData = await mockApi.getRevenueStats().catch(() => null);
+        const simCount = await mockApi.getSimulatedMeterCount().catch(() => 0);
+        setSimulatedMeters(simCount);
+
         const newRegistrations = consumersData ? consumersData.length : 0;
         const pendingApprovalsCount = consumersData ? consumersData.filter((u: any) => u.status === 'pending' || u.isApproved === false).length : 0;
 
-        if (consumersData && Array.isArray(consumersData)) {
-          consumersData.forEach((consumer: any) => {
-            const bills = generateMockBills(consumer.consumerNumber);
-            billsGenerated += bills.length;
-            bills.forEach((bill: any) => {
-              const amount = bill.amount || 0;
-              calculatedRevenue += amount;
-              if (bill.status === 'paid') paymentsReceived++;
-              
-              const month = bill.billingPeriod || 'Unknown';
-              if (!monthlyMap[month]) monthlyMap[month] = 0;
-              monthlyMap[month] += amount;
-            });
-          });
-        }
-
-        const dynamicMonthlyRevenue = Object.entries(monthlyMap).map(([month, rev]) => {
-          return {
-            month,
-            revenue: Number((rev / 1000000).toFixed(2))
-          };
-        }).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+        // Use real monthly revenue from API, fallback to statsData
+        const dynamicMonthlyRevenue = revenueData?.monthlyBreakdown
+          ? revenueData.monthlyBreakdown.map((m: any) => ({
+              month: (m.month || '').substring(0, 3),
+              revenue: Number((m.revenue / 100000).toFixed(2)),
+            }))
+          : statsData.monthlyRevenue || [];
 
         const categoryCounts: Record<string, number> = {};
         let complaintsResolved = 0;
         if (complaintsData && Array.isArray(complaintsData)) {
           complaintsData.forEach((comp: any) => {
-            if (comp.status === 'resolved' || comp.status === 'closed') {
-              complaintsResolved++;
-            }
+            if (comp.status === 'resolved' || comp.status === 'closed') complaintsResolved++;
             const cat = comp.category || 'other';
             if (!categoryCounts[cat]) categoryCounts[cat] = 0;
             categoryCounts[cat]++;
           });
         }
-        
         const COLORS_MAP: Record<string, string> = {
-          billing: '#0088FE',
-          power_outage: '#00C49F',
-          meter: '#FFBB28',
-          connection: '#FF8042',
-          other: '#8884D8',
+          billing: '#0088FE', power_outage: '#00C49F', meter: '#FFBB28', connection: '#FF8042', other: '#8884D8',
         };
         const dynamicComplaintsByCategory = Object.entries(categoryCounts).map(([name, value]) => ({
           name: name.charAt(0).toUpperCase() + name.slice(1).replace('_', ' '),
-          value,
-          color: COLORS_MAP[name.toLowerCase()] || '#8884D8'
+          value, color: COLORS_MAP[name.toLowerCase()] || '#8884D8'
         }));
-
-        const resolvedPercentage = complaintsData?.length > 0 
-          ? Math.round((complaintsResolved / complaintsData.length) * 100) 
-          : 0;
+        const resolvedPercentage = complaintsData?.length > 0 ? Math.round((complaintsResolved / complaintsData.length) * 100) : 0;
 
         setComplaints(complaintsData);
-        setStats({ 
-          ...statsData, 
-          revenue: calculatedRevenue,
+        setStats({
+          ...statsData,
+          revenue: revenueData?.totalRevenue ?? statsData.revenue ?? 0,
           monthlyRevenue: dynamicMonthlyRevenue,
           complaintsByCategory: dynamicComplaintsByCategory,
           pendingApprovalsCount,
+          collectionRate: revenueData?.collectionRate ?? 0,
+          paidBillsCount: revenueData?.paidBillsCount ?? 0,
+          pendingBillsCount: revenueData?.pendingBillsCount ?? 0,
+          overdueBillsCount: revenueData?.overdueBillsCount ?? 0,
+          totalUnitsConsumed: revenueData?.totalUnitsConsumed ?? 0,
+          avgBillAmount: revenueData?.avgBillAmount ?? 0,
           performance: {
             newRegistrations,
-            billsGenerated,
-            paymentsReceived,
+            billsGenerated: revenueData?.totalBillsCount ?? 0,
+            paymentsReceived: revenueData?.paidBillsCount ?? 0,
             complaintsResolved: `${resolvedPercentage}%`
           }
         });
@@ -356,6 +337,25 @@ const AdminDashboard: React.FC = () => {
       toast({ title: 'Success', description: 'Message closed' });
     } catch {
       toast({ title: 'Error', description: 'Failed to close message', variant: 'destructive' });
+    }
+  };
+
+  const handleGenerateBills = async () => {
+    setGeneratingBills(true);
+    try {
+      const result = await mockApi.triggerBillGeneration();
+      toast({
+        title: '✅ Bills Generated',
+        description: `Generated: ${result.generated} | Skipped (already exist): ${result.skipped}`,
+      });
+    } catch (err: any) {
+      toast({
+        title: '❌ Bill Generation Failed',
+        description: err.message || 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingBills(false);
     }
   };
 
@@ -696,6 +696,83 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="settings">
+          {/* Simulated Meter Warning */}
+          {simulatedMeters > 0 && (
+            <Card className="mb-6 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">
+                      {simulatedMeters} Simulated Meter{simulatedMeters > 1 ? 's' : ''} Detected
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                      Bills generated for these consumers use estimated readings. Assign real meters to ensure accurate billing.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 border-amber-400 text-amber-700 hover:bg-amber-100"
+                      onClick={() => navigate('/admin/meter-management')}
+                    >
+                      Manage Meters →
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quick Links */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/meter-management')}>
+              <CardContent className="pt-4 flex items-center gap-4">
+                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full p-3">
+                  <Gauge className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-semibold">Meter Management</p>
+                  <p className="text-sm text-muted-foreground">Assign & update consumer meters</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/tariff-management')}>
+              <CardContent className="pt-4 flex items-center gap-4">
+                <div className="bg-purple-100 dark:bg-purple-900/30 rounded-full p-3">
+                  <Settings2 className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-semibold">Tariff Management</p>
+                  <p className="text-sm text-muted-foreground">Configure billing rates</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Bill Generation */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Zap className="h-5 w-5 text-amber-400" />
+                Monthly Bill Generation
+              </CardTitle>
+              <CardDescription>
+                Manually trigger bill generation for all approved consumers for the current billing month.
+                Bills are also auto-generated on the 1st of every month at midnight IST.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                id="generate-bills-btn"
+                onClick={handleGenerateBills}
+                disabled={generatingBills}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                {generatingBills ? 'Generating...' : 'Generate Monthly Bills'}
+              </Button>
+            </CardContent>
+          </Card>
           <AdminSettings />
         </TabsContent>
 

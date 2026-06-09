@@ -17,45 +17,29 @@ const RevenueDetails: React.FC = () => {
   React.useEffect(() => {
     const fetchRevenue = async () => {
       try {
-        const consumers = await mockApi.getConsumersForManager().catch(() => []);
-        let calculated = 0;
-        const monthlyMap: Record<string, number> = {};
+        const stats = await mockApi.getRevenueStats();
         
-        // TODO: Replace generateMockBills with mockApi.getBills(consumerNumber) when payment API is ready
-        if (consumers && Array.isArray(consumers)) {
-          consumers.forEach((consumer: any) => {
-            const bills = generateMockBills(consumer.consumerNumber);
-            bills.forEach((bill: any) => {
-              const amount = bill.amount || 0;
-              calculated += amount;
-              const month = bill.billingPeriod || 'Unknown';
-              if (!monthlyMap[month]) monthlyMap[month] = 0;
-              monthlyMap[month] += amount;
-            });
-          });
-        }
-
-        const dynamicMonthlyRevenue = Object.entries(monthlyMap).map(([month, rev]) => {
-          const revL = rev / 100000;
+        const dynamicMonthlyRevenue = (stats.monthlyBreakdown || []).map((m: any) => {
+          const revL = (m.revenue || 0) / 100000;
           return {
-            month,
+            month: m.month,
             revenue: Number(revL.toFixed(2)),
-            collections: Number((revL * 0.905).toFixed(2)),
-            outstanding: Number((revL * 0.095).toFixed(2)),
-            rawRevenue: rev
+            collections: Number((revL * 0.905).toFixed(2)), // Simple estimate for collections
+            outstanding: Number((revL * 0.095).toFixed(2)), // Simple estimate for outstanding
+            rawRevenue: m.revenue || 0
           };
-        }).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+        }).sort((a: any, b: any) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
         let maxRev = 0;
         let maxMonth = 'N/A';
-        dynamicMonthlyRevenue.forEach(d => {
+        dynamicMonthlyRevenue.forEach((d: any) => {
           if (d.rawRevenue > maxRev) {
             maxRev = d.rawRevenue;
             maxMonth = d.month;
           }
         });
 
-        setTotalRevenue(calculated);
+        setTotalRevenue(stats.totalRevenue || 0);
         setMonthlyRevenueData(dynamicMonthlyRevenue);
         setHighestMonth({ month: maxMonth, revenue: maxRev });
       } catch (err) {

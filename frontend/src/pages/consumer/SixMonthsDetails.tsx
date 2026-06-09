@@ -177,7 +177,32 @@ const SixMonthsDetails: React.FC = () => {
   const isUnpaid = (status: string) =>
     status === 'pending' || status === 'overdue';
 
-  const handleDownload = (data: typeof monthlyData[0]) => {
+  const handleDownload = async (data: typeof monthlyData[0]) => {
+    if (data.id && !data.id.startsWith('mock-')) {
+      try {
+        const token = localStorage.getItem('jbvnl_token');
+        const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+        const response = await fetch(`${baseURL}/api/bills/${data.id}/download`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to download PDF');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `JBVNL-Bill-${data.billNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        return;
+      } catch (error) {
+        console.error('Error downloading real PDF', error);
+      }
+    }
+    
+    // Fallback for mock bills
     generateMockPdf({
       billNumber:     data.billNumber,
       billingPeriod:  data.month,
@@ -291,7 +316,21 @@ const SixMonthsDetails: React.FC = () => {
                     </div>
 
                     {/* Action button */}
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                        {isUnpaid(data.status) && (
+                          data.id?.startsWith('mock-') ? (
+                            <span className="text-xs text-muted-foreground flex items-center px-2">Mock bill cannot be paid</span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 border-0"
+                              onClick={() => navigate('/consumer/payment', { state: { bill: { _id: data.id, ...data } } })}
+                            >
+                              <CreditCard className="h-3.5 w-3.5" />
+                              Pay Now
+                            </Button>
+                          )
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

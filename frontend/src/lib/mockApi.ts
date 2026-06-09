@@ -33,6 +33,137 @@ class RealApi {
     return await response.json();
   }
 
+  async getAllBills(params?: { consumerNumber?: string; status?: string; page?: number; search?: string }): Promise<{ bills: Bill[]; total: number; pages: number }> {
+    const qs = new URLSearchParams();
+    if (params?.consumerNumber) qs.set('consumerNumber', params.consumerNumber);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.search) qs.set('search', params.search);
+    const response = await fetch(getApiUrl(`/api/bills/all?${qs}`), { headers: { ...getAuthHeader() } });
+    if (!response.ok) throw new Error('Failed to fetch bills');
+    return await response.json();
+  }
+
+  async markBillPaid(billId: string, paymentMethod: string, transactionRef?: string): Promise<Bill> {
+    const response = await fetch(getApiUrl(`/api/bills/${billId}/pay`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ paymentMethod, transactionRef }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).message || 'Failed to mark bill as paid');
+    }
+    return await response.json();
+  }
+
+  // Meters
+  async getMeters(params?: { isSimulated?: boolean; consumerNumber?: string }): Promise<any[]> {
+    const qs = new URLSearchParams();
+    if (params?.isSimulated !== undefined) qs.set('isSimulated', String(params.isSimulated));
+    if (params?.consumerNumber) qs.set('consumerNumber', params.consumerNumber);
+    const response = await fetch(getApiUrl(`/api/meters?${qs}`), { headers: { ...getAuthHeader() } });
+    if (!response.ok) return [];
+    return await response.json();
+  }
+
+  async getSimulatedMeterCount(): Promise<number> {
+    const response = await fetch(getApiUrl('/api/meters/simulated-count'), { headers: { ...getAuthHeader() } });
+    if (!response.ok) return 0;
+    const data = await response.json();
+    return data.count ?? 0;
+  }
+
+  async getMyMeter(): Promise<any | null> {
+    const response = await fetch(getApiUrl('/api/meters/my'), { headers: { ...getAuthHeader() } });
+    if (!response.ok) return null;
+    return await response.json();
+  }
+
+  async createMeter(data: { meterNumber: string; consumerNumber: string; meterType: string; previousReading?: number; currentReading?: number }): Promise<any> {
+    const response = await fetch(getApiUrl('/api/meters'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).message || 'Failed to create meter');
+    }
+    return await response.json();
+  }
+
+  async updateMeterReading(meterId: string, currentReading: number): Promise<any> {
+    const response = await fetch(getApiUrl(`/api/meters/${meterId}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ currentReading }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).message || 'Failed to update reading');
+    }
+    return await response.json();
+  }
+
+  async deleteMeter(meterId: string): Promise<void> {
+    await fetch(getApiUrl(`/api/meters/${meterId}`), { method: 'DELETE', headers: { ...getAuthHeader() } });
+  }
+
+  // Tariff
+  async getTariff(): Promise<any> {
+    const response = await fetch(getApiUrl('/api/tariff'), { headers: { ...getAuthHeader() } });
+    if (!response.ok) throw new Error('Failed to fetch tariff');
+    return await response.json();
+  }
+
+  async updateTariff(data: { domestic?: any; commercial?: any; industrial?: any }): Promise<any> {
+    const response = await fetch(getApiUrl('/api/tariff'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).message || 'Failed to update tariff');
+    }
+    return await response.json();
+  }
+
+  // Payments (Razorpay)
+  async createPaymentOrder(billId: string): Promise<any> {
+    const response = await fetch(getApiUrl('/api/payments/create-order'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ billId }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).message || 'Failed to create payment order');
+    }
+    return await response.json();
+  }
+
+  async verifyPayment(data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string; billId: string }): Promise<any> {
+    const response = await fetch(getApiUrl('/api/payments/verify'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).message || 'Payment verification failed');
+    }
+    return await response.json();
+  }
+
+  // Revenue Stats
+  async getRevenueStats(): Promise<any> {
+    const response = await fetch(getApiUrl('/api/stats/revenue'), { headers: { ...getAuthHeader() } });
+    if (!response.ok) throw new Error('Failed to fetch revenue stats');
+    return await response.json();
+  }
+
   // Complaints
   async getComplaints(consumerNumber?: string): Promise<Complaint[]> {
     const response = await fetch(getApiUrl('/api/complaints'), {
@@ -457,6 +588,18 @@ class RealApi {
     // Let's assume there is /api/complaints/manager or /api/complaints for manager
     const response = await fetch(getApiUrl('/api/complaints'), { headers: getAuthHeader() });
     if (!response.ok) throw new Error('Failed to fetch complaints');
+    return await response.json();
+  }
+
+  async triggerBillGeneration(): Promise<{ message: string; generated: number; skipped: number }> {
+    const response = await fetch(getApiUrl('/api/bills/generate'), {
+      method: 'POST',
+      headers: { ...getAuthHeader() }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to generate bills');
+    }
     return await response.json();
   }
 }

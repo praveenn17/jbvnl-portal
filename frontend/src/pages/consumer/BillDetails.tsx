@@ -42,15 +42,28 @@ const BillDetails: React.FC = () => {
     fetchBill();
   }, [billId]);
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!billId) return;
-    const token = localStorage.getItem('jbvnl_token');
-    const url = `/api/bills/${billId}/download?token=${token}`;
-    
-    // Create an invisible iframe or open in new tab to trigger print
-    const newWindow = window.open(url, '_blank');
-    if (newWindow) {
-      newWindow.focus();
+    try {
+      const token = localStorage.getItem('jbvnl_token');
+      const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${baseURL}/api/bills/${billId}/download`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to download PDF');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `JBVNL-Bill-${bill?.billNumber || billId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading PDF', error);
+      alert('Failed to download PDF. Please try again.');
     }
   };
 
@@ -201,6 +214,15 @@ const BillDetails: React.FC = () => {
               >
                 Raise Billing Concern
               </Button>
+              {bill.status !== 'paid' && (
+                <Button 
+                  onClick={() => navigate('/consumer/payment', { state: { bill } })}
+                  className="bg-[#1e3a5f] hover:bg-[#2563eb]"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Pay Now
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

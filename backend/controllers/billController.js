@@ -1,209 +1,206 @@
-const Bill = require('../models/Bill');
-const { logAudit } = require('../utils/auditLogger');
+const Bill    = require('../models/Bill');
+const User    = require('../models/User');
+const { logAudit }      = require('../utils/auditLogger');
+const { generateBillPdf } = require('../utils/pdfService');
+const { generateMonthlyBills } = require('../utils/billGenerator');
 
-// @desc    Get all bills for a consumer
-// @route   GET /api/bills/:consumerNumber
-// @access  Private
+// ── Get all bills for a consumer ──────────────────────────────────────────
+// @route GET /api/bills/:consumerNumber
 const getBills = async (req, res) => {
   try {
-    // Security check: Consumer can only view their own bills
     if (req.user.role === 'consumer' && req.user.consumerNumber !== req.params.consumerNumber) {
       return res.status(403).json({ message: 'Not authorized to view these bills' });
     }
-
-    const bills = await Bill.find({ consumerNumber: req.params.consumerNumber });
+    const bills = await Bill.find({ consumerNumber: req.params.consumerNumber }).sort({ createdAt: -1 });
     res.json(bills);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Get bill by ID
-// @route   GET /api/bills/detail/:id
-// @access  Private
+// ── Get all bills (Admin/Manager with filters) ────────────────────────────
+// @route GET /api/bills
+const getAllBills = async (req, res) => {
+  try {
+    const { consumerNumber, status, page = 1, limit = 20, search } = req.query;
+    const filter = {};
+    if (consumerNumber) filter.consumerNumber = consumerNumber;
+    if (status)         filter.status = status;
+    if (search) {
+      filter.$or = [
+        { consumerNumber: { $regex: search, $options: 'i' } },
+        { billNumber:     { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const total = await Bill.countDocuments(filter);
+    const bills = await Bill.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    res.json({ bills, total, page: Number(page), pages: Math.ceil(total / limit) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ── Get bill by ID ────────────────────────────────────────────────────────
+// @route GET /api/bills/detail/:id
 const getBillById = async (req, res) => {
   try {
     const bill = await Bill.findById(req.params.id);
-    if (!bill) {
-      return res.status(404).json({ message: 'Bill not found' });
-    }
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
 
-    // Security check: Consumer can only view their own bill
     if (req.user.role === 'consumer' && req.user.consumerNumber !== bill.consumerNumber) {
       return res.status(403).json({ message: 'Not authorized to view this bill' });
     }
 
-    // Optional: Log bill view/download
     logAudit({
-      action: 'BILL_DOWNLOADED',
-      message: `Consumer viewed/downloaded bill ${bill.billNumber}`,
-      actor: req.user._id,
-      actorName: req.user.name,
-      actorEmail: req.user.email,
-      actorRole: req.user.role,
-      targetType: 'bill',
-      targetId: bill._id,
-      targetLabel: bill.billNumber,
+      action: 'BILL_VIEWED',
+      message: `Bill ${bill.billNumber} viewed`,
+      actor: req.user._id, actorName: req.user.name, actorEmail: req.user.email, actorRole: req.user.role,
+      targetType: 'bill', targetId: bill._id, targetLabel: bill.billNumber,
       severity: 'info',
     });
 
     res.json(bill);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-
-// @desc    Create a bill (Admin/Manager only)
-// @route   POST /api/bills
-// @access  Private/Admin
+// ── Create a bill manually (Admin/Manager) ────────────────────────────────
+// @route POST /api/bills
 const createBill = async (req, res) => {
-  const { consumerNumber, billNumber, billingPeriod, dueDate, amount, units } = req.body;
-
   try {
-    const bill = new Bill({
-      consumerNumber,
-      billNumber,
-      billingPeriod,
-      dueDate,
-      amount,
-      units,
-    });
+    const { consumerNumber, billNumber, billingPeriod, dueDate, amount, units } = req.body;
 
-    const createdBill = await bill.save();
+    const bill = await Bill.create({
+      consumerNumber, billNumber, billingPeriod, dueDate, amount,
+      units: units || 0,
+      unitsConsumed: units || 0,
+    });
 
     logAudit({
       action: 'BILL_CREATED',
-      message: `Admin/Manager created bill ${createdBill.billNumber}`,
-      actor: req.user._id,
-      actorName: req.user.name,
-      actorEmail: req.user.email,
-      actorRole: req.user.role,
-      targetType: 'bill',
-      targetId: createdBill._id,
-      targetLabel: createdBill.billNumber,
+      message: `Manual bill ${bill.billNumber} created`,
+      actor: req.user._id, actorName: req.user.name, actorEmail: req.user.email, actorRole: req.user.role,
+      targetType: 'bill', targetId: bill._id, targetLabel: bill.billNumber,
       metadata: { amount, units },
       severity: 'info',
     });
 
-    res.status(201).json(createdBill);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(201).json(bill);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 };
 
-// @desc    Download/Print Bill PDF
-// @route   GET /api/bills/:id/download
-// @access  Private
+// ── Update a bill (Admin/Manager) ─────────────────────────────────────────
+// @route PUT /api/bills/:id
+const updateBill = async (req, res) => {
+  try {
+    const bill = await Bill.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    res.json(bill);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// ── Delete a bill (Admin only) ────────────────────────────────────────────
+// @route DELETE /api/bills/:id
+const deleteBill = async (req, res) => {
+  try {
+    const bill = await Bill.findByIdAndDelete(req.params.id);
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    logAudit({
+      action: 'BILL_DELETED',
+      message: `Bill ${bill.billNumber} deleted`,
+      actor: req.user._id, actorName: req.user.name, actorEmail: req.user.email, actorRole: req.user.role,
+      targetType: 'bill', targetId: bill._id, targetLabel: bill.billNumber,
+      severity: 'warning',
+    });
+    res.json({ message: 'Bill deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ── Download PDF bill ─────────────────────────────────────────────────────
+// @route GET /api/bills/:id/download
 const downloadBillPdf = async (req, res) => {
   try {
     const bill = await Bill.findById(req.params.id);
-    if (!bill) {
-      return res.status(404).send('Bill not found');
-    }
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
 
     if (req.user.role === 'consumer' && req.user.consumerNumber !== bill.consumerNumber) {
-      return res.status(403).send('Not authorized to download this bill');
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
-    // Optional: Log bill download
+    const consumer = await User.findOne({ consumerNumber: bill.consumerNumber });
+
     logAudit({
       action: 'BILL_PDF_DOWNLOADED',
-      message: `Consumer downloaded bill ${bill.billNumber}`,
-      actor: req.user._id,
-      actorName: req.user.name,
-      actorEmail: req.user.email,
-      actorRole: req.user.role,
-      targetType: 'bill',
-      targetId: bill._id,
-      targetLabel: bill.billNumber,
+      message: `PDF downloaded for bill ${bill.billNumber}`,
+      actor: req.user._id, actorName: req.user.name, actorEmail: req.user.email, actorRole: req.user.role,
+      targetType: 'bill', targetId: bill._id, targetLabel: bill.billNumber,
       severity: 'info',
     });
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Bill - ${bill.billNumber}</title>
-          <style>
-              body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
-              .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 20px; }
-              .logo { font-size: 24px; font-weight: bold; color: #2563eb; }
-              .sub-logo { font-size: 14px; color: #666; }
-              .details-container { display: flex; justify-content: space-between; margin-bottom: 30px; }
-              .details-col { width: 45%; }
-              .details-col p { margin: 5px 0; }
-              .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-              .table th, .table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-              .table th { background-color: #f8fafc; font-weight: bold; }
-              .total-row { font-size: 18px; font-weight: bold; background-color: #eff6ff; }
-              .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #888; }
-          </style>
-      </head>
-      <body onload="window.print()">
-          <div class="header">
-              <div class="logo">JBVNL Smart Portal</div>
-              <div class="sub-logo">Electricity Bill Invoice</div>
-          </div>
-          
-          <div class="details-container">
-              <div class="details-col">
-                  <h3>Consumer Details</h3>
-                  <p><strong>Name:</strong> ${req.user.name}</p>
-                  <p><strong>Consumer No:</strong> ${bill.consumerNumber}</p>
-                  <p><strong>Address:</strong> ${req.user.address || 'N/A'}</p>
-              </div>
-              <div class="details-col">
-                  <h3>Bill Details</h3>
-                  <p><strong>Bill No:</strong> ${bill.billNumber}</p>
-                  <p><strong>Billing Period:</strong> ${bill.billingPeriod}</p>
-                  <p><strong>Due Date:</strong> ${new Date(bill.dueDate).toLocaleDateString()}</p>
-                  <p><strong>Status:</strong> ${bill.status.toUpperCase()}</p>
-              </div>
-          </div>
+    generateBillPdf(bill, consumer || {}, res);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
-          <table class="table">
-              <thead>
-                  <tr>
-                      <th>Description</th>
-                      <th>Value</th>
-                  </tr>
-              </thead>
-              <tbody>
-                  <tr>
-                      <td>Units Consumed</td>
-                      <td>${bill.units} kWh</td>
-                  </tr>
-                  <tr>
-                      <td>Current Amount</td>
-                      <td>₹${bill.amount.toLocaleString()}</td>
-                  </tr>
-                  <tr class="total-row">
-                      <td>Total Payable</td>
-                      <td>₹${bill.amount.toLocaleString()}</td>
-                  </tr>
-              </tbody>
-          </table>
+// ── Mark bill as paid (Admin/Manager offline override) ────────────────────
+// @route PUT /api/bills/:id/pay
+const markBillPaid = async (req, res) => {
+  try {
+    const { paymentMethod, transactionRef } = req.body;
+    const bill = await Bill.findById(req.params.id);
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    if (bill.status === 'paid') return res.status(400).json({ message: 'Bill is already paid' });
 
-          <div class="footer">
-              <p>This is a computer-generated invoice and does not require a physical signature.</p>
-              <p>&copy; ${new Date().getFullYear()} JBVNL Smart Portal. All rights reserved.</p>
-          </div>
-      </body>
-      </html>
-    `;
+    bill.status        = 'paid';
+    bill.paidAt        = new Date();
+    bill.paymentMethod = paymentMethod || 'cash';
+    bill.transactionRef = transactionRef || `OFFLINE-${Date.now()}`;
+    await bill.save();
 
-    res.send(htmlContent);
-  } catch (error) {
-    res.status(500).send(error.message);
+    logAudit({
+      action: 'BILL_MARKED_PAID',
+      message: `Bill ${bill.billNumber} marked paid offline by ${req.user.name}`,
+      actor: req.user._id, actorName: req.user.name, actorEmail: req.user.email, actorRole: req.user.role,
+      targetType: 'bill', targetId: bill._id, targetLabel: bill.billNumber,
+      metadata: { paymentMethod, transactionRef },
+      severity: 'info',
+    });
+
+    res.json(bill);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ── Trigger manual bill generation ────────────────────────────────────────
+// @route POST /api/bills/generate
+const triggerBillGeneration = async (req, res) => {
+  try {
+    const result = await generateMonthlyBills();
+    res.json({
+      message: `Bill generation complete. Generated: ${result.generated}, Skipped: ${result.skipped}, Simulated: ${result.simulated}`,
+      ...result,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
 module.exports = {
-  getBills,
-  getBillById,
-  createBill,
-  downloadBillPdf,
+  getBills, getAllBills, getBillById,
+  createBill, updateBill, deleteBill,
+  downloadBillPdf, markBillPaid, triggerBillGeneration,
 };
