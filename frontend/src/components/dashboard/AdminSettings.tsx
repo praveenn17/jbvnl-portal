@@ -14,10 +14,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import {
   Settings, Users, Bell, Shield, Database, Gauge, Mail, MessageSquare,
-  Lock, Clock, Download, RefreshCw, CheckCircle, Loader2,
+  Lock, Download, RefreshCw, Loader2,
 } from 'lucide-react';
 
-// ── Settings state types ─────────────────────────────────────────────────────
 export interface SettingsState {
   autoApprovalThreshold: number;
   emailNotifications: { registration: boolean; complaints: boolean; billing: boolean; summary: boolean };
@@ -52,7 +51,6 @@ const AdminSettings: React.FC = () => {
     securitySettings: { passwordPolicy: true, otpVerification: true, adminProtection: true, sessionTimeout: 30 }
   };
 
-  // Temp state for editing inside modals
   const [tempThreshold, setTempThreshold] = useState(5);
   const [tempEmail, setTempEmail] = useState({ registration: true, complaints: true, billing: false, summary: true });
   const [tempSms, setTempSms] = useState({ escalation: true, payment: false, outage: true });
@@ -122,7 +120,6 @@ const AdminSettings: React.FC = () => {
     }
   };
 
-  // ── Setting rows for the overview list ─────────────────────────────────────
   if (loading || !settings) {
     return (
       <Card>
@@ -185,7 +182,6 @@ const AdminSettings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* ─── A. Auto-Approval Threshold ──────────────────────────────────────── */}
       <Dialog open={openModal === 'autoApproval'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -206,7 +202,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── B. Email Notifications ──────────────────────────────────────────── */}
       <Dialog open={openModal === 'emailNotifications'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -233,7 +228,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── C. SMS Alerts ───────────────────────────────────────────────────── */}
       <Dialog open={openModal === 'smsAlerts'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -259,7 +253,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── D. Database Backup ──────────────────────────────────────────────── */}
       <Dialog open={openModal === 'backup'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -291,7 +284,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── E. Security Level ───────────────────────────────────────────────── */}
       <Dialog open={openModal === 'security'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -320,7 +312,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── F. User Management ──────────────────────────────────────────────── */}
       <Dialog open={openModal === 'userManagement'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -349,7 +340,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── G. Notification Settings ────────────────────────────────────────── */}
       <Dialog open={openModal === 'notificationPrefs'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -376,7 +366,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── H. Security Settings ────────────────────────────────────────────── */}
       <Dialog open={openModal === 'securitySettings'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -406,7 +395,6 @@ const AdminSettings: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── I. Backup & Recovery ────────────────────────────────────────────── */}
       <Dialog open={openModal === 'backupRecovery'} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader>

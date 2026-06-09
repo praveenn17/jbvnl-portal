@@ -12,15 +12,14 @@ import { User } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  Shield, Users, TrendingUp, Settings, CheckCircle, DollarSign,
+  Users, Settings, DollarSign,
   FileBarChart, MessageSquare, AlertTriangle, Send, Inbox,
-  RefreshCcw, Lock, ChevronRight, ChevronDown
+  RefreshCcw, Lock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { mockApi } from '../../lib/mockApi';
 import ConversationChatModal from '../chat/ConversationChatModal';
 
-// Priority/status color helpers
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-green-500/20 text-green-400 border-green-500/30',
   medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
@@ -43,12 +42,10 @@ const ManagerDashboard: React.FC = () => {
   const [activeUsersOpen, setActiveUsersOpen] = useState(false);
   const [consumers, setConsumers] = useState<User[]>([]);
 
-  // New conversation state
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageData, setMessageData] = useState({ subject: '', priority: 'medium', category: 'system', message: '' });
   const [sendingMsg, setSendingMsg] = useState(false);
 
-  // My Conversations state
   const [convOpen, setConvOpen] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
   const [loadingConv, setLoadingConv] = useState(false);
@@ -93,7 +90,6 @@ const ManagerDashboard: React.FC = () => {
     loadConversations();
   };
 
-  // Send message now creates a Conversation (two-way thread)
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageData.subject || !messageData.message) {
@@ -117,7 +113,6 @@ const ManagerDashboard: React.FC = () => {
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header with Manager Info */}
         <div className="bg-gradient-to-r from-blue-600/90 to-purple-600/90 rounded-2xl p-8 text-white border border-white/10 shadow-xl">
           <div className="flex justify-between items-center">
             <div>
@@ -137,7 +132,6 @@ const ManagerDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="hover-scale cursor-pointer bg-gradient-to-br from-blue-500 to-cyan-600 text-white border-0 shadow-lg" onClick={loadConsumers}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -179,7 +173,6 @@ const ManagerDashboard: React.FC = () => {
           </Card>
         </div>
 
-        {/* Quick Actions — 4 cards now */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card
             className="hover-scale cursor-pointer bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-0 shadow-lg"
@@ -256,7 +249,6 @@ const ManagerDashboard: React.FC = () => {
           </Card>
         </div>
 
-        {/* ── New Message / Start Conversation Modal ─────────────── */}
         <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -320,7 +312,6 @@ const ManagerDashboard: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* ── My Conversations Modal ──────────────────────────────── */}
         <Dialog open={convOpen} onOpenChange={setConvOpen}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -378,7 +369,6 @@ const ManagerDashboard: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Active Users Modal */}
         <Dialog open={activeUsersOpen} onOpenChange={setActiveUsersOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -425,7 +415,6 @@ const ManagerDashboard: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Settings Dialog */}
         <div className="fixed bottom-6 right-6">
           <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
             <DialogContent className="max-w-md">
@@ -463,7 +452,6 @@ const ManagerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Conversation Chat Modal (outside Dialog to avoid z-index issues) */}
       {openChatId && (
         <ConversationChatModal
           conversationId={openChatId}

@@ -25,7 +25,6 @@ const ConsumerSettings: React.FC = () => {
     darkMode: theme === 'dark',
   });
 
-  // ── Modal states ─────────────────────────────────────────────────────────
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -79,7 +78,6 @@ const ConsumerSettings: React.FC = () => {
     }
   };
 
-  // ── Change Password ──────────────────────────────────────────────────────
   const handleChangePassword = async () => {
     const { currentPassword, newPassword, confirmPassword } = passwordForm;
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -103,7 +101,6 @@ const ConsumerSettings: React.FC = () => {
     }
   };
 
-  // ── Update Phone ─────────────────────────────────────────────────────────
   const handleUpdatePhone = async () => {
     const phone = phoneForm.phone.trim();
     if (!phone) {
@@ -127,7 +124,6 @@ const ConsumerSettings: React.FC = () => {
     }
   };
 
-  // ── Contact Us ───────────────────────────────────────────────────────────
   const handleContactUs = () => {
     const email = 'krpraveen2212@gmail.com';
     const subject = encodeURIComponent('JBVNL Consumer Support Request');
@@ -166,7 +162,6 @@ const ConsumerSettings: React.FC = () => {
     }, 1000);
   };
 
-  // ── Export Account Data ──────────────────────────────────────────────────
   const handleExportData = async () => {
     try {
       const profile = await mockApi.getMyProfile();
@@ -191,7 +186,6 @@ const ConsumerSettings: React.FC = () => {
     }
   };
 
-  // ── Download Bill History ────────────────────────────────────────────────
   const handleDownloadBillHistory = async () => {
     try {
       const cNum = user?.consumerNumber;
@@ -414,7 +408,6 @@ const ConsumerSettings: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Change Password Modal ─────────────────────────────────────────── */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <Card className="w-full max-w-md mx-4">
@@ -468,7 +461,6 @@ const ConsumerSettings: React.FC = () => {
         </div>
       )}
 
-      {/* ── Update Phone Modal ────────────────────────────────────────────── */}
       {showPhoneModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <Card className="w-full max-w-md mx-4">

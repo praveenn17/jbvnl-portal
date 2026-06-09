@@ -10,7 +10,6 @@ import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Hash, CheckCircle2, XCirc
 import { RegisterData } from './types';
 import OtpVerification from './OtpVerification';
 
-// ── Password strength rules ────────────────────────────────────────────────────
 interface PasswordRule {
   label: string;
   test: (pw: string) => boolean;
@@ -40,7 +39,6 @@ const validatePasswordStrength = (pw: string): string | null => {
   return null;
 };
 
-// ── Register Tab Component ─────────────────────────────────────────────────────
 const RegisterTab: React.FC = () => {
   const { register, loading, otpPendingEmail, clearOtpPending } = useAuth();
   const { toast } = useToast();
@@ -62,11 +60,9 @@ const RegisterTab: React.FC = () => {
     department: '',
   });
 
-  // ── Inline field-level error state ─────────────────────────────────────────
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [consumerNumberError, setConsumerNumberError] = useState<string | null>(null);
 
-  // ── Validation helpers ─────────────────────────────────────────────────────
   const PHONE_REGEX = /^[0-9]{10}$/;
   const CONSUMER_NUMBER_REGEX = /^[0-9]{4}$/;
 
@@ -84,7 +80,6 @@ const RegisterTab: React.FC = () => {
     return null;
   };
 
-  // ── Client-side validation ─────────────────────────────────────────────────
   const validateForm = (): string | null => {
     const { name, email, password, confirmPassword, role, consumerNumber, address, employeeId, department, phone } = registerData;
 
@@ -209,7 +204,6 @@ const RegisterTab: React.FC = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleRegister} className="space-y-4">
-          {/* Role */}
           <div className="space-y-2">
             <Label htmlFor="register-role">Register As</Label>
             <Select
@@ -227,7 +221,6 @@ const RegisterTab: React.FC = () => {
             </Select>
           </div>
 
-          {/* Name + Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="register-name">Full Name</Label>
@@ -262,7 +255,6 @@ const RegisterTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Password + Confirm Password */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="register-password">Password</Label>
@@ -287,7 +279,6 @@ const RegisterTab: React.FC = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {/* Password strength checklist */}
               {(passwordFocused || password.length > 0) && (
                 <ul className="mt-2 space-y-1">
                   {PASSWORD_RULES.map((rule) => {
@@ -326,7 +317,6 @@ const RegisterTab: React.FC = () => {
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {/* Match indicator */}
               {registerData.confirmPassword.length > 0 && (
                 <p className={`text-xs flex items-center gap-1 mt-1 ${registerData.password === registerData.confirmPassword ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                   {registerData.password === registerData.confirmPassword
@@ -337,7 +327,6 @@ const RegisterTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Phone (Always visible) */}
           <div className="space-y-2">
             <Label htmlFor="register-phone">Phone Number <span className="text-muted-foreground text-xs">(10 digits)</span></Label>
             <div className="relative">
@@ -373,7 +362,6 @@ const RegisterTab: React.FC = () => {
             )}
           </div>
 
-          {/* Conditional Fields: Consumer */}
           {registerData.role === 'consumer' && (
             <>
               <div className="space-y-2">
@@ -425,7 +413,6 @@ const RegisterTab: React.FC = () => {
             </>
           )}
 
-          {/* Conditional Fields: Manager */}
           {registerData.role === 'manager' && (
             <>
               <div className="space-y-2">
