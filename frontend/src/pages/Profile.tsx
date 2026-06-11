@@ -158,16 +158,23 @@ const Profile = () => {
                       <div className="font-medium font-mono bg-muted px-2 py-1 rounded w-fit">{profile.consumerNumber}</div>
                     </div>
                   )}
-                  <div className="col-span-2 space-y-1">
-                    <Label className="text-muted-foreground">Address</Label>
-                    {editing ? (
-                      <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Not provided" />
-                    ) : (
-                      <div className="font-medium flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" /> {profile.address || 'Not provided'}
-                      </div>
-                    )}
-                  </div>
+                  {profile.role === 'manager' ? (
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-muted-foreground">Employee ID</Label>
+                      <div className="font-medium">{profile.employeeId || 'Not provided'}</div>
+                    </div>
+                  ) : (
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-muted-foreground">Address</Label>
+                      {editing ? (
+                        <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Not provided" />
+                      ) : (
+                        <div className="font-medium flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" /> {profile.address || 'Not provided'}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="justify-end border-t border-border/50 pt-6">

@@ -698,6 +698,8 @@ const getUserProfile = async (req, res) => {
       consumerNumber: user.consumerNumber,
       address: user.address,
       phone: user.phone,
+      employeeId: user.employeeId,
+      department: user.department,
       preferences: user.preferences,
       createdAt: user.createdAt,
     });
