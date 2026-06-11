@@ -206,14 +206,21 @@ const RevenueDetails: React.FC = () => {
           {/* Collection Rate Comparison */}
           <Card className="bg-muted/10 border border-border">
             <CardHeader>
-              <CardTitle className="text-xl">Zone-wise Collection Rate</CardTitle>
+              <CardTitle className="text-xl">Zone-wise Collection in Last Quarter</CardTitle>
               <CardDescription>Revenue collection performance by zone</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={zoneWiseRevenue}>
+                <BarChart data={zoneWiseRevenue} margin={{ bottom: 50 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="zone" />
+                  <XAxis
+                    dataKey="zone"
+                    interval={0}
+                    angle={-35}
+                    textAnchor="end"
+                    tick={{ fontSize: 11 }}
+                    height={70}
+                  />
                   <YAxis />
                   <Tooltip formatter={(value) => [`₹${value}L`, 'Revenue']} />
                   <Bar dataKey="revenue" fill="#8884d8" />
