@@ -163,26 +163,203 @@ const ConsumerSettings: React.FC = () => {
   };
 
   const handleExportData = async () => {
+    toast({ title: "Preparing Export", description: "Fetching your account data, please wait…" });
     try {
       const profile = await mockApi.getMyProfile();
-      const bills = await mockApi.getBills(profile.consumerNumber);
-      const complaints = await mockApi.getComplaints(profile.consumerNumber);
-      
-      // Remove sensitive fields
-      const { password, emailOtpHash, emailOtpExpires, tokenVersion, ...safeProfile } = profile;
-      const data = { profile: safeProfile, bills, complaints, exportedAt: new Date().toISOString() };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `jbvnl_account_data_${new Date().toISOString().slice(0,10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({ title: "Data Exported", description: "Your account data has been downloaded." });
+      const bills: any[] = await mockApi.getBills(profile.consumerNumber);
+      const complaints: any[] = await mockApi.getComplaints(profile.consumerNumber);
+
+      const exportDate = new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
+
+      // ── Billing rows ──────────────────────────────────────────────────────────
+      const billRows = bills.map((b: any) => {
+        const statusClass =
+          b.status === 'paid' ? 'status-paid' :
+          b.status === 'overdue' ? 'status-overdue' : 'status-pending';
+        return `
+          <tr>
+            <td>${b.billNumber || '—'}</td>
+            <td>${b.billingPeriod || '—'}</td>
+            <td>${b.units ?? '—'} kWh</td>
+            <td>₹${Number(b.amount || 0).toLocaleString('en-IN')}</td>
+            <td>${b.dueDate ? new Date(b.dueDate).toLocaleDateString('en-IN') : '—'}</td>
+            <td class="${statusClass}">${(b.status || '').toUpperCase()}</td>
+          </tr>`;
+      }).join('');
+
+      const totalBillAmt = bills.reduce((s: number, b: any) => s + Number(b.amount || 0), 0);
+      const paidBills   = bills.filter((b: any) => b.status === 'paid').length;
+      const pendBills   = bills.length - paidBills;
+
+      // ── Complaint rows ────────────────────────────────────────────────────────
+      const compRows = complaints.map((c: any) => {
+        const statusClass =
+          c.status === 'resolved' ? 'status-paid' :
+          c.status === 'rejected' ? 'status-overdue' : 'status-pending';
+        return `
+          <tr>
+            <td>${c.title || '—'}</td>
+            <td>${c.category || '—'}</td>
+            <td>${c.priority || '—'}</td>
+            <td class="${statusClass}">${(c.status || '').toUpperCase()}</td>
+            <td>${c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN') : '—'}</td>
+          </tr>`;
+      }).join('');
+
+      const resolvedComps = complaints.filter((c: any) => c.status === 'resolved').length;
+      const pendComps     = complaints.length - resolvedComps;
+
+      // ── Full HTML document ────────────────────────────────────────────────────
+      const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JBVNL Account Data Export</title>
+  <style>
+    @media print {
+      @page { margin: 20mm; }
+      .page-break { page-break-before: always; }
+      body { font-family: Arial, sans-serif; color: #1a1a1a; }
+    }
+    body { font-family: Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 24px; }
+    .header { background: #1e40af; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; font-weight: bold; margin: 0 0 4px; }
+    .header p  { font-size: 13px; margin: 0; opacity: 0.85; }
+    .section { margin-bottom: 30px; }
+    .section-title { font-size: 16px; font-weight: bold; color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 6px; margin-bottom: 12px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .detail-item label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .detail-item p { font-size: 14px; font-weight: bold; margin: 2px 0 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #1e40af; color: white; padding: 10px; text-align: left; font-weight: bold; }
+    td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .status-paid    { color: #16a34a; font-weight: bold; }
+    .status-pending { color: #d97706; font-weight: bold; }
+    .status-overdue { color: #dc2626; font-weight: bold; }
+    .summary-row td { background: #eff6ff; font-weight: bold; border-top: 2px solid #1e40af; }
+    .footer { text-align: center; font-size: 11px; color: #888; margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+    .watermark { opacity: 0.06; font-size: 80px; font-weight: bold; color: #1e40af; position: fixed; top: 40%; left: 20%; transform: rotate(-30deg); z-index: -1; pointer-events: none; }
+    .badge { display: inline-block; background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="watermark">JBVNL</div>
+
+  <!-- PAGE 1 — Account Summary -->
+  <div class="header">
+    <h1>⚡ JBVNL Smart Portal</h1>
+    <p>Account Data Export &nbsp;|&nbsp; Generated on ${exportDate}</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Consumer Details</div>
+    <div class="detail-grid">
+      <div class="detail-item"><label>Full Name</label><p>${profile.name || '—'}</p></div>
+      <div class="detail-item"><label>Email Address</label><p>${profile.email || '—'}</p></div>
+      <div class="detail-item"><label>Phone Number</label><p>${profile.phone || '—'}</p></div>
+      <div class="detail-item"><label>Consumer Number</label><p>${profile.consumerNumber || '—'}</p></div>
+      <div class="detail-item"><label>Address</label><p>${profile.address || '—'}</p></div>
+      <div class="detail-item"><label>Account Status</label><p><span class="badge">${(profile.status || 'Active').toUpperCase()}</span></p></div>
+      <div class="detail-item"><label>Member Since</label><p>${profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</p></div>
+      <div class="detail-item"><label>Role</label><p>${profile.role || 'Consumer'}</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Connection Details</div>
+    <div class="detail-grid">
+      <div class="detail-item"><label>Connection Type</label><p>Residential</p></div>
+      <div class="detail-item"><label>Meter Number</label><p>${(profile as any).meterNumber || profile.consumerNumber || '—'}</p></div>
+    </div>
+  </div>
+
+  <div class="footer">Generated on ${exportDate} &nbsp;|&nbsp; JBVNL Smart Portal &nbsp;|&nbsp; Confidential</div>
+
+  <!-- PAGE 2 — Billing History -->
+  <div class="page-break"></div>
+
+  <div class="header">
+    <h1>⚡ JBVNL Smart Portal</h1>
+    <p>Billing History &nbsp;|&nbsp; ${profile.name || ''} &nbsp;(${profile.consumerNumber || ''})</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Bill Records</div>
+    ${bills.length === 0
+      ? '<p style="color:#888;font-style:italic;">No billing records found.</p>'
+      : `<table>
+          <thead>
+            <tr>
+              <th>Bill Number</th><th>Period</th><th>Units</th><th>Amount</th><th>Due Date</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${billRows}
+            <tr class="summary-row">
+              <td colspan="3">Total Bills: ${bills.length}</td>
+              <td>₹${totalBillAmt.toLocaleString('en-IN')}</td>
+              <td>Paid: ${paidBills}</td>
+              <td>Pending: ${pendBills}</td>
+            </tr>
+          </tbody>
+        </table>`
+    }
+  </div>
+
+  <div class="footer">Generated on ${exportDate} &nbsp;|&nbsp; JBVNL Smart Portal &nbsp;|&nbsp; Confidential</div>
+
+  <!-- PAGE 3 — Complaint History -->
+  <div class="page-break"></div>
+
+  <div class="header">
+    <h1>⚡ JBVNL Smart Portal</h1>
+    <p>Complaint History &nbsp;|&nbsp; ${profile.name || ''} &nbsp;(${profile.consumerNumber || ''})</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Complaint Records</div>
+    ${complaints.length === 0
+      ? '<p style="color:#888;font-style:italic;">No complaint records found.</p>'
+      : `<table>
+          <thead>
+            <tr>
+              <th>Title</th><th>Category</th><th>Priority</th><th>Status</th><th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${compRows}
+            <tr class="summary-row">
+              <td colspan="2">Total Complaints: ${complaints.length}</td>
+              <td></td>
+              <td class="status-paid">Resolved: ${resolvedComps}</td>
+              <td class="status-pending">Pending: ${pendComps}</td>
+            </tr>
+          </tbody>
+        </table>`
+    }
+  </div>
+
+  <div class="footer">Generated on ${exportDate} &nbsp;|&nbsp; JBVNL Smart Portal &nbsp;|&nbsp; Confidential</div>
+</body>
+</html>`;
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast({ title: "Popup Blocked", description: "Please allow popups for this site and try again.", variant: "destructive" });
+        return;
+      }
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+
+      toast({ title: "Export Ready", description: "Print dialog opened — save as PDF to download." });
     } catch (err) {
-      toast({ title: "Export Failed", description: "Failed to export data", variant: "destructive" });
+      toast({ title: "Export Failed", description: "Could not fetch account data. Please try again.", variant: "destructive" });
     }
   };
 

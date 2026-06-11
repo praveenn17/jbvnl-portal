@@ -32,6 +32,13 @@ const STATUS_COLORS: Record<string, string> = {
   closed: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
+const getInitials = (name: string): string => {
+  if (!name) return 'M';
+  const parts = name.trim().split(' ').filter(Boolean);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 const ManagerDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -123,11 +130,12 @@ const ManagerDashboard: React.FC = () => {
               </Badge>
             </div>
             <div className="text-right">
-              <img
-                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
-                alt="Manager Avatar"
-                className="w-24 h-24 rounded-full border-4 border-white/30 shadow-lg"
-              />
+              <div
+                className="w-24 h-24 rounded-full border-4 border-white/30 shadow-lg flex items-center justify-center bg-gradient-to-br from-purple-400 to-blue-500 text-white text-3xl font-bold select-none"
+                aria-label={`Avatar for ${user?.name || 'Manager'}`}
+              >
+                {getInitials(user?.name || '')}
+              </div>
             </div>
           </div>
         </div>
