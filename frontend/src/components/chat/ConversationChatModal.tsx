@@ -196,8 +196,10 @@ const ConversationChatModal: React.FC<ConversationChatModalProps> = ({
             </div>
           ) : (
             messages.map(msg => {
-              const isOwnMessage = msg.senderId === (user?.id || (user as any)?._id);
-              const isManagerMsg = msg.senderRole === 'manager';
+              const isOwnMessage = (msg.sender?._id || msg.sender) === (user?.id || (user as any)?._id);
+              const senderRole = msg.sender?.role || msg.senderRole || 'unknown';
+              const senderName = msg.sender?.name || msg.senderName || 'Unknown';
+              const isManagerMsg = senderRole === 'manager';
 
               return (
                 <div
@@ -207,15 +209,17 @@ const ConversationChatModal: React.FC<ConversationChatModalProps> = ({
                   <div className={`max-w-[75%] ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
                     {/* Sender info */}
                     <div className={`flex items-center gap-2 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
-                      <span className="text-xs font-medium text-muted-foreground">{msg.senderName}</span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {senderName}
+                      </span>
                       <Badge
                         className={`text-xs px-1.5 py-0 h-4 ${
-                          isManagerMsg
-                            ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
-                            : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          senderRole === 'admin'
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
                         }`}
                       >
-                        {msg.senderRole}
+                        {senderRole}
                       </Badge>
                     </div>
 

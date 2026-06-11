@@ -120,9 +120,13 @@ export interface Conversation {
 export interface ConversationMessage {
   _id: string;
   conversationId: string;
-  senderId: string;
-  senderName: string;
-  senderRole: 'admin' | 'manager';
+  sender?: {
+    _id: string;
+    name: string;
+    role: 'admin' | 'manager' | 'consumer';
+  };
+  senderName?: string;
+  senderRole?: 'admin' | 'manager';
   message: string;
   readBy: string[];
   createdAt: string;

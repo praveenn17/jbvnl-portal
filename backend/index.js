@@ -8,7 +8,12 @@ const { scheduleBillGeneration } = require('./utils/billGenerator');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true,               // reflect request origin (works for dev and prod)
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+}));
 app.use(express.json());
 
 // Request Logger

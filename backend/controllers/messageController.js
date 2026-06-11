@@ -146,9 +146,7 @@ const createConversation = async (req, res) => {
 
     await ConversationMessage.create({
       conversationId: conversation._id,
-      senderId: req.user._id,
-      senderName: req.user.name,
-      senderRole: req.user.role,
+      sender: req.user._id,
       message,
       readBy: [req.user._id],
     });
@@ -209,7 +207,9 @@ const getConversationById = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to view this conversation.' });
     }
 
-    const messages = await ConversationMessage.find({ conversationId: conversation._id }).sort({ createdAt: 1 });
+    const messages = await ConversationMessage.find({ conversationId: conversation._id })
+      .sort({ createdAt: 1 })
+      .populate('sender', 'name role');
     res.json({ conversation, messages });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -240,9 +240,7 @@ const replyToConversation = async (req, res) => {
 
     const newMsg = await ConversationMessage.create({
       conversationId: conversation._id,
-      senderId: req.user._id,
-      senderName: req.user.name,
-      senderRole: req.user.role,
+      sender: req.user._id,
       message,
       readBy: [req.user._id],
     });

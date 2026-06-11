@@ -8,18 +8,9 @@ const conversationMessageSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    senderId: {
+    sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
-    },
-    senderName: {
-      type: String,
-      required: true,
-    },
-    senderRole: {
-      type: String,
-      enum: ['manager', 'admin'],
       required: true,
     },
     message: {
