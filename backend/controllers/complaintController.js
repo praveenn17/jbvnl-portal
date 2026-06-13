@@ -49,8 +49,15 @@ const getComplaints = async (req, res) => {
         return res.status(400).json({ message: 'User does not have a consumer number associated' });
       }
     } else if (req.user.role === 'manager') {
-      // Managers only see complaints assigned to them (or open ones if you prefer, but strictly assigned to them as per prompt)
-      query.assignedTo = req.user._id;
+      console.log("Manager Department:", req.user.department);
+      console.log("Query Department:", req.user.department);
+      
+      query.$or = [
+        { assignedTo: req.user._id }
+      ];
+      if (req.user.department) {
+        query.$or.push({ assignedTeam: req.user.department });
+      }
     }
 
     const complaints = await Complaint.find(query)
@@ -161,6 +168,7 @@ const fileComplaint = async (req, res) => {
 
 const assignComplaint = async (req, res) => {
   const { assignedTo, assignedTeam, note } = req.body;
+  console.log("Assigned Team:", assignedTeam);
 
   try {
     const complaint = await Complaint.findById(req.params.id);

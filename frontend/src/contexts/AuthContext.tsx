@@ -129,6 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         consumerNumber: data.consumerNumber,
         phone: data.phone,
         address: data.address,
+        employeeId: data.employeeId,
+        department: data.department,
         createdAt: data.createdAt || new Date().toISOString(),
       };
       // Store preferences separately so they're accessible via (user as any).preferences
@@ -174,6 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         consumerNumber: data.consumerNumber,
         phone: data.phone,
         address: data.address,
+        employeeId: data.employeeId,
+        department: data.department,
         createdAt: data.createdAt || new Date().toISOString(),
       };
       const userWithPrefs = { ...loggedUser, preferences: data.preferences } as any;

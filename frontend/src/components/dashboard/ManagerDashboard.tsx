@@ -128,6 +128,11 @@ const ManagerDashboard: React.FC = () => {
               <Badge variant="secondary" className="mt-3 bg-white/20 text-white border-white/30">
                 Manager Level Access
               </Badge>
+              {user?.department && (
+                <p className="text-white/70 text-sm mt-1">
+                  Department: <span className="text-white font-medium">{user.department}</span>
+                </p>
+              )}
             </div>
             <div className="text-right">
               <div

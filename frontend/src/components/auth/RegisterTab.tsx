@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Hash, CheckCircle2, XCircle, Briefcase, Building2 } from 'lucide-react';
 import { RegisterData } from './types';
 import OtpVerification from './OtpVerification';
+import { DEPARTMENTS } from '@/lib/constants';
 
 interface PasswordRule {
   label: string;
@@ -441,14 +442,7 @@ const RegisterTab: React.FC = () => {
                       <SelectValue placeholder="Select department/team" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Technical Team">Technical Team</SelectItem>
-                      <SelectItem value="Billing Team">Billing Team</SelectItem>
-                      <SelectItem value="Meter Department">Meter Department</SelectItem>
-                      <SelectItem value="Field Inspection Team">Field Inspection Team</SelectItem>
-                      <SelectItem value="Emergency Response Team">Emergency Response Team</SelectItem>
-                      <SelectItem value="Connection Team">Connection Team</SelectItem>
-                      <SelectItem value="Customer Support">Customer Support</SelectItem>
-                      <SelectItem value="Admin Operations">Admin Operations</SelectItem>
+                      {DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

@@ -11,10 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, AlertTriangle, Clock, Calendar, MapPin, User, Filter, Phone, Eye, RefreshCw, Users, MessageCircle } from 'lucide-react';
 import { Complaint } from '@/types';
 import { mockApi } from '@/lib/mockApi';
+import { DEPARTMENTS } from '@/lib/constants';
 
 const STATUSES = ['open', 'in_progress', 'assigned', 'resolved', 'closed'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-const TEAMS = ['Tech Team A', 'Billing Team', 'Meter Department', 'Field Inspection Team', 'Emergency Response Team', 'Connection Team'];
 
 const timeAgo = (d: string) => { const ms = Date.now() - new Date(d).getTime(); const days = Math.ceil(ms / 864e5); if (days < 2) return '1 day ago'; if (days < 7) return `${days} days ago`; if (days < 30) return `${Math.ceil(days / 7)} weeks ago`; return `${Math.ceil(days / 30)} months ago`; };
 const priorityClass = (p: string) => ({ urgent: 'bg-red-500/20 text-red-400 border-red-500/30', high: 'bg-orange-500/20 text-orange-400 border-orange-500/30', medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', low: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }[p] ?? 'bg-muted text-muted-foreground');
@@ -338,7 +338,7 @@ const ActiveComplaints: React.FC = () => {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2"><Label>Assign to Team</Label>
-                <Select value={newTeam} onValueChange={setNewTeam}><SelectTrigger><SelectValue placeholder="Select Team" /></SelectTrigger><SelectContent className="bg-popover">{TEAMS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                <Select value={newTeam} onValueChange={setNewTeam}><SelectTrigger><SelectValue placeholder="Select Team" /></SelectTrigger><SelectContent className="bg-popover">{DEPARTMENTS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
               </div>
               <div className="space-y-2"><Label>Assignment Note</Label><Textarea placeholder="Instructions for the team..." value={newNote} onChange={e => setNewNote(e.target.value)} /></div>
             </div>

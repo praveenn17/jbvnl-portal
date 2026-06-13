@@ -42,7 +42,7 @@ async function sendOtpEmail(toEmail, otp) {
     return false;
   }
 
-  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
+  const from = process.env.SMTP_FROM || `JBVNL Portal <${process.env.SMTP_USER}>`;
 
   const mailOptions = {
     from,
@@ -110,7 +110,7 @@ async function sendPasswordResetEmail(toEmail, userName, resetUrl) {
     return false;
   }
 
-  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
+  const from = process.env.SMTP_FROM || `JBVNL Portal <${process.env.SMTP_USER}>`;
 
   const mailOptions = {
     from,
@@ -196,7 +196,7 @@ async function sendComplaintStatusEmail(toEmail, userName, complaintTitle, oldSt
   const transporter = createTransporter();
   if (!transporter) return false;
 
-  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
+  const from = process.env.SMTP_FROM || `JBVNL Portal <${process.env.SMTP_USER}>`;
   
   const statusColors = {
     resolved: '#16a34a',
@@ -246,7 +246,7 @@ async function sendBillGeneratedEmail(toEmail, userName, billNumber, billingPeri
   const transporter = createTransporter();
   if (!transporter) return false;
 
-  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
+  const from = process.env.SMTP_FROM || `JBVNL Portal <${process.env.SMTP_USER}>`;
 
   const mailOptions = {
     from,
