@@ -2,6 +2,7 @@ const Complaint = require('../models/Complaint');
 const { logAudit } = require('../utils/auditLogger');
 const notificationService = require('../utils/notificationService');
 const User = require('../models/User');
+const { sendComplaintStatusEmail } = require('../utils/emailService');
 
 const getSLAHours = (priority) => {
   switch (priority) {
@@ -238,6 +239,7 @@ const updateComplaintStatus = async (req, res) => {
       return res.status(403).json({ message: 'Consumers cannot update status' });
     }
 
+    const oldStatus = complaint.status;
     complaint.status = status;
     complaint.lastUpdatedBy = req.user._id;
 
@@ -291,6 +293,17 @@ const updateComplaintStatus = async (req, res) => {
           targetType: 'complaint',
           targetId: updatedComplaint._id
         });
+
+        if (consumer.email) {
+          sendComplaintStatusEmail(
+            consumer.email,
+            consumer.name || 'Consumer',
+            updatedComplaint.title,
+            oldStatus,
+            status,
+            updatedComplaint._id
+          ).catch(err => console.error('[EMAIL] Complaint notification failed:', err.message));
+        }
       }
     }
 

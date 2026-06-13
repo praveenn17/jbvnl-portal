@@ -4,6 +4,7 @@ const Bill   = require('../models/Bill');
 const Meter  = require('../models/Meter');
 const Tariff = require('../models/Tariff');
 const { logAudit } = require('./auditLogger');
+const { sendBillGeneratedEmail } = require('./emailService');
 
 // ── Default tariff (fallback if no Tariff document in DB) ─────────────────
 const DEFAULT_TARIFF = {
@@ -129,6 +130,17 @@ const generateMonthlyBills = async () => {
         tax,
         status: 'pending',
       });
+
+      if (consumer.email) {
+        sendBillGeneratedEmail(
+          consumer.email,
+          consumer.name,
+          bill.billNumber,
+          bill.billingPeriod,
+          bill.amount,
+          bill.dueDate
+        ).catch(err => console.error('[EMAIL] Bill notification failed:', err.message));
+      }
 
       // ── Advance meter readings ────────────────────────────────────────────
       await Meter.findByIdAndUpdate(meter._id, {

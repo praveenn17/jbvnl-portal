@@ -1,26 +1,5 @@
-/**
- * Email Service — JBVNL Portal
- * ----------------------------
- * Sends transactional emails using nodemailer.
- *
- * Required .env variables:
- *   SMTP_HOST   — e.g. smtp.gmail.com
- *   SMTP_PORT   — e.g. 587
- *   SMTP_USER   — your email address
- *   SMTP_PASS   — your email password or app password
- *   SMTP_FROM   — "JBVNL Portal <noreply@jbvnl.in>"
- *
- * In development (NODE_ENV !== 'production'), OTP is also printed to
- * the console so you can test without real SMTP credentials.
- */
-
 const nodemailer = require('nodemailer');
 
-/**
- * Create a nodemailer transporter.
- * If SMTP_HOST is not set, we fall back to a no-op transporter that just
- * logs the email so the app doesn't crash in environments without SMTP.
- */
 function createTransporter() {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn('[EMAIL] WARNING: SMTP credentials missing in .env — emails will NOT be sent.');
@@ -30,7 +9,7 @@ function createTransporter() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465, // true for port 465, false for others
+    secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
@@ -38,17 +17,9 @@ function createTransporter() {
   });
 }
 
-/**
- * Send an OTP email to the specified address.
- *
- * @param {string} toEmail   - Recipient email address
- * @param {string} otp       - Plain-text 6-digit OTP (NOT stored — only used here)
- * @returns {Promise<boolean>} true if sent (or dev mode), false on error
- */
 async function sendOtpEmail(toEmail, otp) {
   const isDev = process.env.NODE_ENV !== 'production';
 
-  // In development, always log OTP to console for easy testing
   if (isDev) {
     console.warn('');
     console.warn('╔══════════════════════════════════════════╗');
@@ -62,17 +33,16 @@ async function sendOtpEmail(toEmail, otp) {
 
   const transporter = createTransporter();
 
-  // If no transporter, dev can still use console-logged OTP
   if (!transporter) {
     if (isDev) {
       console.warn('[EMAIL] No SMTP — OTP logged to console above for dev testing.');
-      return true; // Return true in dev so registration flow continues
+      return true;
     }
     console.error('[EMAIL] SMTP not configured. Cannot send OTP in production.');
     return false;
   }
 
-  const from = process.env.SMTP_FROM || `JBVNL Portal <${process.env.SMTP_USER}>`;
+  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
 
   const mailOptions = {
     from,
@@ -115,14 +85,6 @@ async function sendOtpEmail(toEmail, otp) {
   }
 }
 
-/**
- * Send a password reset email to the specified address.
- *
- * @param {string} toEmail   - Recipient email address
- * @param {string} userName  - User's display name
- * @param {string} resetUrl  - Full reset URL containing the raw token
- * @returns {Promise<boolean>} true if sent (or dev mode), false on error
- */
 async function sendPasswordResetEmail(toEmail, userName, resetUrl) {
   const isDev = process.env.NODE_ENV !== 'production';
 
@@ -148,7 +110,7 @@ async function sendPasswordResetEmail(toEmail, userName, resetUrl) {
     return false;
   }
 
-  const from = process.env.SMTP_FROM || `JBVNL Portal <${process.env.SMTP_USER}>`;
+  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
 
   const mailOptions = {
     from,
@@ -230,4 +192,108 @@ async function sendPasswordResetEmail(toEmail, userName, resetUrl) {
   }
 }
 
-module.exports = { sendOtpEmail, sendPasswordResetEmail };
+async function sendComplaintStatusEmail(toEmail, userName, complaintTitle, oldStatus, newStatus, complaintId) {
+  const transporter = createTransporter();
+  if (!transporter) return false;
+
+  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
+  
+  const statusColors = {
+    resolved: '#16a34a',
+    in_progress: '#d97706', 
+    closed: '#6b7280',
+    pending: '#dc2626'
+  };
+  const color = statusColors[newStatus] || '#2563eb';
+
+  const mailOptions = {
+    from,
+    to: toEmail,
+    subject: `Complaint Update: ${complaintTitle} — Status changed to ${newStatus}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; background: #f4f6fb; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #1a3a5c;">⚡ JBVNL Portal</h1>
+          <p style="color: #6b7280; font-size: 13px;">Jharkhand Bijli Vitran Nigam Limited</p>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 28px; border: 1px solid #e5e7eb;">
+          <h2 style="color: #1a3a5c;">Complaint Status Update</h2>
+          <p>Hello <strong>${userName}</strong>,</p>
+          <p>Your complaint status has been updated.</p>
+          <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+            <tr><td style="padding: 8px; color: #6b7280;">Complaint</td><td style="padding: 8px; font-weight: bold;">${complaintTitle}</td></tr>
+            <tr><td style="padding: 8px; color: #6b7280;">Previous Status</td><td style="padding: 8px;">${oldStatus}</td></tr>
+            <tr><td style="padding: 8px; color: #6b7280;">New Status</td><td style="padding: 8px; font-weight: bold; color: ${color};">${newStatus.toUpperCase()}</td></tr>
+          </table>
+          <p style="color: #6b7280; font-size: 13px;">Log in to your JBVNL Portal account to view full details.</p>
+        </div>
+        <p style="color: #d1d5db; font-size: 11px; text-align: center; margin-top: 20px;">© ${new Date().getFullYear()} JBVNL Portal</p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.warn(`[EMAIL] Complaint status email sent to ${toEmail}`);
+    return true;
+  } catch (err) {
+    console.error('[EMAIL] Failed to send complaint status email:', err.message);
+    return false;
+  }
+}
+
+async function sendBillGeneratedEmail(toEmail, userName, billNumber, billingPeriod, amount, dueDate) {
+  const transporter = createTransporter();
+  if (!transporter) return false;
+
+  const from = process.env.FROM_EMAIL || `JBVNL Portal <${process.env.SMTP_USER}>`;
+
+  const mailOptions = {
+    from,
+    to: toEmail,
+    subject: `New Bill Generated: ${billingPeriod} — ₹${amount.toLocaleString()}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; background: #f4f6fb; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #1a3a5c;">⚡ JBVNL Portal</h1>
+          <p style="color: #6b7280; font-size: 13px;">Jharkhand Bijli Vitran Nigam Limited</p>
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 28px; border: 1px solid #e5e7eb;">
+          <h2 style="color: #1a3a5c;">New Bill Generated</h2>
+          <p>Hello <strong>${userName}</strong>,</p>
+          <p>Your electricity bill for <strong>${billingPeriod}</strong> has been generated.</p>
+          <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+            <tr><td style="padding: 8px; color: #6b7280;">Bill Number</td><td style="padding: 8px; font-weight: bold;">${billNumber}</td></tr>
+            <tr><td style="padding: 8px; color: #6b7280;">Billing Period</td><td style="padding: 8px;">${billingPeriod}</td></tr>
+            <tr><td style="padding: 8px; color: #6b7280;">Amount Due</td><td style="padding: 8px; font-weight: bold; color: #dc2626;">₹${amount.toLocaleString()}</td></tr>
+            <tr><td style="padding: 8px; color: #6b7280;">Due Date</td><td style="padding: 8px;">${new Date(dueDate).toLocaleDateString('en-IN')}</td></tr>
+          </table>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${process.env.FRONTEND_URL}/consumer/six-months" 
+               style="background: #2563eb; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+              Pay Now
+            </a>
+          </div>
+          <p style="color: #6b7280; font-size: 13px;">Please pay before the due date to avoid late charges.</p>
+        </div>
+        <p style="color: #d1d5db; font-size: 11px; text-align: center; margin-top: 20px;">© ${new Date().getFullYear()} JBVNL Portal</p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.warn(`[EMAIL] Bill generated email sent to ${toEmail}`);
+    return true;
+  } catch (err) {
+    console.error('[EMAIL] Failed to send bill generated email:', err.message);
+    return false;
+  }
+}
+
+module.exports = { 
+  sendOtpEmail, 
+  sendPasswordResetEmail,
+  sendComplaintStatusEmail,
+  sendBillGeneratedEmail
+};
