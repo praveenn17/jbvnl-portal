@@ -9,14 +9,26 @@ const Footer: React.FC = () => {
   const isConsumer = user?.role === 'consumer';
 
   const handleBillHistory = () => {
-    navigate('/consumer/six-months');
+    if (!user) {
+      navigate('/', { state: { showAuth: true } });
+      return;
+    }
+    navigate(isConsumer ? '/consumer/six-months' : '/bill-payment');
   };
 
   const handleNewConnection = () => {
+    if (!user) {
+      navigate('/', { state: { showAuth: true } });
+      return;
+    }
     navigate(isConsumer ? '/consumer/new-connection' : '/new-connection');
   };
 
   const handleComplaintStatus = () => {
+    if (!user) {
+      navigate('/', { state: { showAuth: true } });
+      return;
+    }
     navigate(isConsumer ? '/consumer/complaint-status' : '/complaint-status');
   };
 

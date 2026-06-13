@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import ConsumerDashboard from '../components/dashboard/ConsumerDashboard';
@@ -12,6 +13,13 @@ import Footer from '../components/home/Footer';
 const Index = () => {
   const { user, isAuthenticated } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.showAuth) {
+      setShowLogin(true);
+    }
+  }, [location.state]);
 
   const renderDashboard = () => {
     if (!user) return null;
