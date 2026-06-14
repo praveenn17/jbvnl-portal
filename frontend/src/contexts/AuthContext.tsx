@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role: string) => Promise<import('../types').LoginResult>;
@@ -77,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!token || (role !== 'admin' && role !== 'manager')) return;
 
     try {
-      const response = await fetch('/api/auth/users/pending', {
+      const response = await fetch(`${BASE_URL}/api/auth/users/pending`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
@@ -101,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string, role: string): Promise<import('../types').LoginResult> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, role }),
@@ -133,7 +135,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         department: data.department,
         createdAt: data.createdAt || new Date().toISOString(),
       };
-      // Store preferences separately so they're accessible via (user as any).preferences
       const userWithPrefs = { ...loggedUser, preferences: data.preferences } as any;
 
       setUser(userWithPrefs);
@@ -146,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { user: userWithPrefs };
     } catch (error) {
-      throw error; // Re-throw so LoginTab can display the real message
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -155,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const takeoverSession = async (email: string, password: string, role: string): Promise<import('../types').LoginResult> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/takeover-session', {
+      const response = await fetch(`${BASE_URL}/api/auth/takeover-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, role }),
@@ -202,7 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('jbvnl_token');
     if (!token) return;
     try {
-      const response = await fetch('/api/auth/profile', {
+      const response = await fetch(`${BASE_URL}/api/auth/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -229,8 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }): Promise<boolean> => {
     setLoading(true);
     try {
-      // Send OTP — backend checks if email is already registered
-      const response = await fetch('/api/auth/send-otp', {
+      const response = await fetch(`${BASE_URL}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userData.email }),
@@ -242,7 +242,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.message || 'Failed to send verification code');
       }
 
-      // If backend returned devOtp (dev mode), log it prominently so user can see it
       if (data.devOtp) {
         console.warn('');
         console.warn('%c╔══════════════════════════════════════╗', 'color: #f59e0b; font-weight: bold');
@@ -253,7 +252,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.table({ 'Your OTP': data.devOtp, 'Bypass OTP': '111000' });
       }
 
-      // Store registration data temporarily so verifyOtp can submit it
       localStorage.setItem('jbvnl_temp_reg_data', JSON.stringify(userData));
       setOtpPendingEmail(userData.email);
       return true;
@@ -273,8 +271,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyOtp = async (email: string, otp: string): Promise<boolean> => {
     setLoading(true);
     try {
-      // 1. Verify OTP with backend (now uses /verify-email endpoint)
-      const otpResponse = await fetch('/api/auth/verify-email', {
+      const otpResponse = await fetch(`${BASE_URL}/api/auth/verify-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim(), otp: otp.trim() }),
@@ -285,14 +282,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(errorData.message || 'OTP verification failed');
       }
 
-      // 2. OTP verified — submit the full registration
       const tempRegData = localStorage.getItem('jbvnl_temp_reg_data');
       if (!tempRegData) {
         throw new Error('Registration data missing. Please start over.');
       }
 
       const userData = JSON.parse(tempRegData);
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch(`${BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
@@ -307,8 +303,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('jbvnl_temp_reg_data');
       setOtpPendingEmail(null);
 
-      // If current logged-in user is admin, refresh pending users so the new
-      // manager request appears in the admin approval panel immediately.
       const currentToken = localStorage.getItem('jbvnl_token');
       const savedUser = localStorage.getItem('jbvnl_user');
       const currentRole = savedUser ? JSON.parse(savedUser).role : null;
@@ -332,7 +326,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resendOtp = async (email: string): Promise<boolean> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/resend-otp', {
+      const response = await fetch(`${BASE_URL}/api/auth/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim() }),
@@ -367,7 +361,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserStatus = async (userId: string, status: 'approved' | 'rejected' | 'hold') => {
     const token = localStorage.getItem('jbvnl_token');
     try {
-      const response = await fetch(`/api/auth/users/${userId}/status`, {
+      const response = await fetch(`${BASE_URL}/api/auth/users/${userId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -388,7 +382,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('jbvnl_token');
     if (token) {
       try {
-        await fetch('/api/auth/logout', {
+        await fetch(`${BASE_URL}/api/auth/logout`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
