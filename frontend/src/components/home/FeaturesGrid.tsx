@@ -54,15 +54,15 @@ const FeaturesGrid: React.FC<FeaturesGridProps> = ({ onFeatureClick }) => {
         return (
           <Card 
             key={index}
-            className="hover-scale border-0 shadow-lg bg-white/80 backdrop-blur-sm cursor-pointer hover:shadow-xl transition-shadow"
+            className="hover-scale border border-border shadow-lg bg-card cursor-pointer hover:shadow-xl transition-shadow"
             onClick={() => onFeatureClick(feature.title)}
           >
             <CardContent className="p-6 text-center">
               <div className={`w-12 h-12 ${feature.color} rounded-lg flex items-center justify-center mx-auto mb-4`}>
                 <IconComponent className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-              <p className="text-gray-600">{feature.description}</p>
+              <h3 className="text-xl font-semibold mb-2 text-foreground">{feature.title}</h3>
+              <p className="text-muted-foreground">{feature.description}</p>
             </CardContent>
           </Card>
         );

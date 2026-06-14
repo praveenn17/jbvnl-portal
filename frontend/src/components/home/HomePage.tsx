@@ -23,7 +23,7 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+    <div className="min-h-screen bg-background">
       <HeroSection onLoginClick={onLoginClick} />
       <div className="container mx-auto px-4">
         <FeaturesGrid onFeatureClick={handleFeatureClick} />

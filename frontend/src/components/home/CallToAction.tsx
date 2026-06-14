@@ -8,7 +8,7 @@ interface CallToActionProps {
 
 const CallToAction: React.FC<CallToActionProps> = ({ onLoginClick }) => {
   return (
-    <section className="bg-primary text-white py-16">
+    <section className="bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white py-16">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
         <p className="text-xl mb-8 opacity-90">
@@ -16,7 +16,7 @@ const CallToAction: React.FC<CallToActionProps> = ({ onLoginClick }) => {
         </p>
         <Button 
           onClick={onLoginClick}
-          className="bg-white text-primary hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
+          className="bg-white text-blue-900 hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
         >
           Access Your Account
         </Button>
