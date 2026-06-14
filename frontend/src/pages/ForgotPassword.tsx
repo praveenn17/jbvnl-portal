@@ -45,7 +45,8 @@ const ForgotPassword: React.FC = () => {
     setPageState('loading');
 
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim(), role }),

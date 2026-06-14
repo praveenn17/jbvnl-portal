@@ -24,7 +24,8 @@ const SessionGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       if (!token) return;
 
       try {
-        const response = await fetch('/api/auth/session-status', {
+        const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+        const response = await fetch(`${BASE_URL}/api/auth/session-status`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -49,18 +50,18 @@ const SessionGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
-      
+
       // We must call the server to clear cookies/session if needed,
       // but in this case the server session is ALREADY invalid.
       // So we just clear local state.
       await logout();
-      
+
       toast({
         title: 'Session Terminated',
         description: message,
         variant: 'destructive',
       });
-      
+
       navigate('/');
     };
 
